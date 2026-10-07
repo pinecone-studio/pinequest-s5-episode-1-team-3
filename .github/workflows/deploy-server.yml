@@ -1,0 +1,45 @@
+# main руу server/ өөрчлөлт merge хийгдэх бүрт Hugging Face Space руу автоматаар deploy хийнэ.
+# Тохиргоо (repo-д admin эрх хэрэгтэй): GitHub → Settings → Secrets and variables → Actions
+#   Secret:   HF_TOKEN     (Hugging Face → Settings → Access Tokens, "Write" эрхтэй)
+#   Variable: HF_SPACE_ID  (жишээ нь: <hf-нэр>/signo-api)
+# Admin эрхгүй бол гараар: docs/DEPLOY.md
+name: Deploy server (Hugging Face Spaces)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - ".github/workflows/deploy-server.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ vars.HF_SPACE_ID != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install huggingface_hub==2.1.1
+      - name: Upload server/ to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
+              folder_path="server",
+              repo_id=os.environ["HF_SPACE_ID"],
+              repo_type="space",
+              ignore_patterns=[
+                  ".venv/*", "tests/*", "**/__pycache__/*", ".env",
+                  ".pytest_cache/*", ".ruff_cache/*",
+              ],
+              commit_message="Deploy " + os.environ.get("GITHUB_SHA", "")[:7],
+          )
+          PY

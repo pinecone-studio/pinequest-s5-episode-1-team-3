@@ -1,0 +1,23 @@
+# Гараар ажиллуулна: GitHub → Actions → "Build Android APK" → Run workflow
+# Тохиргоо (repo-д admin эрх хэрэгтэй): Secret EXPO_TOKEN (expo.dev → Account settings → Access tokens)
+# Admin эрхгүй бол компьютерээс: cd mobile && bun run build:apk (docs/APK.md)
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - run: bun install --frozen-lockfile
+      - run: bunx eas-cli@latest build --platform android --profile preview --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

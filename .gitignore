@@ -1,0 +1,33 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+
+# Хувь хүний AI тохиргоо (багийнх биш)
+.claude/settings.local.json
+.claude/projects/
+
+# Нууц (AGENTS.md → Deploy ба APK)
+.env
+.env.*
+!.env.example
+
+# Хүмүүсийн дуу бичлэг, өгөгдөл, загварын жин Git-д орохгүй (AGENTS.md → Өгөгдөл, Git)
+data/
+*.wav
+*.m4a
+*.mp3
+*.pt
+*.bin
+*.safetensors
+*.tflite
+*.onnx
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Colab
+.ipynb_checkpoints/

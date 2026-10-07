@@ -1,0 +1,20 @@
+[project]
+name = "signo-server"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: алдаа · I: import эрэмбэ · B: түгээмэл алдаа · UP: шинэ синтакс · T20: print хориглох · ANN: type hint заавал
+select = ["E", "F", "I", "B", "UP", "T20", "ANN"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN"]
