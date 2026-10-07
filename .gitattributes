@@ -1,0 +1,4 @@
+# Бүх текст файлыг LF мөр төгсгөлтэй хадгална (Mac, Windows, Linux ижил)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
