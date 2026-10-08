@@ -168,7 +168,7 @@ GET  /api/v1/health → { status: "ok", version, models: { sound: "<хувилб
 POST /api/v1/detect   multipart/form-data
      audio   m4a, AAC, mono, 16kHz, ≤ 10 сек, ≤ 1MB
      mode    "home" | "queue" | "name" | "talk"
-     ticket  "А-024"   (queue)
+     ticket  "А-024" | "024"   (queue. Үсэг заавал биш: зарим газар зөвхөн тоо дууддаг)
      name    "Болд"    (name)
 
 → 200 { sound:      { label: "knock" | "doorbell" | "alarm" | "speech" | "other", score: 0–1 } | null,
@@ -239,7 +239,8 @@ cd server && ruff check . && ruff format --check . && pytest
 
 **Заавал тесттэй:**
 - `text/numbers.py`: «тэг хорин дөрөв» → 24, «нэг зуун арван тав» → 115
-- `text/matching.py`: А-024 таарна, Б-024 таарахгүй; «Болдоо» ≈ «Болд»
+- `text/matching.py`: А-024 таарна, Б-024 таарахгүй; үсэггүй «024» нь «А тэг хорин дөрөв»-тэй ч, «хорин дөрөв»-тэй ч таарна; «Болдоо» ≈ «Болд»
+- `lib/ticket.ts`: «а 24» → «А-024», «24» → «024» (хэрэглэгч input-д чөлөөтэй бичнэ)
 - `lib/cooldown.ts`
 - `lib/alerts.ts`
 - `lib/schemas.ts`
