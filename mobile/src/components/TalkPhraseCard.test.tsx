@@ -5,6 +5,9 @@ import type { PhraseId } from "@/lib/talk";
 
 import { TalkPhraseCard } from "./TalkPhraseCard";
 
+jest.mock("../../assets/images/signGreetingSequence.png", () => ({ uri: "signGreetingSequence.png" }));
+jest.mock("../../assets/images/signThanksSequence.png", () => ({ uri: "signThanksSequence.png" }));
+
 type SelectionArea = ReactElement<{
   onPress: () => void;
   accessibilityRole: string;
@@ -13,6 +16,15 @@ type SelectionArea = ReactElement<{
 }>;
 
 const SELECTION_CASES: [PhraseId, boolean][] = [["greeting", false], ["greeting", true], ["thanks", false], ["thanks", true]];
+
+test.each<[PhraseId, string]>([["greeting", "signGreetingSequence.png"], ["thanks", "signThanksSequence.png"]])("card %s bundles a native-safe illustration", (phrase, asset) => {
+  type Illustration = ReactElement<{ source: { uri: string }; contentFit: string }>;
+  type ImageArea = ReactElement<{ children: Illustration }>;
+  const card = TalkPhraseCard({ phrase, selected: false, disabled: false, onSelect: jest.fn(), onSpeak: jest.fn(), onPreview: jest.fn() }) as ReactElement<{ children: ImageArea[] }>;
+  const image = card.props.children[0].props.children;
+  expect(image.props.source).toEqual({ uri: asset });
+  expect(image.props.contentFit).toBe("contain");
+});
 
 test.each(SELECTION_CASES)("card %s selects without speaking and exposes selected=%s", (phrase, selected) => {
   const onSelect = jest.fn();
