@@ -15,6 +15,7 @@ export const strings = {
     },
   },
   queue: {
+    testAlert: "Мэдэгдэл турших",
     title: "Дугаар",
     back: "Буцах",
     listen: "Сонсох",
@@ -31,6 +32,7 @@ export const strings = {
     preview: "Туршилтын төлөв — аудио таних холболт хийгдээгүй",
   },
   name: {
+    testAlert: "Мэдэгдэл турших",
     title: "Нэр",
     back: "Буцах",
     listen: "Сонсох",
@@ -45,6 +47,9 @@ export const strings = {
     preview: "Туршилтын төлөв — аудио таних холболт хийгдээгүй",
   },
   home: {
+    testKnock: "Тогших мэдэгдэл турших",
+    testDoorbell: "Хонхны мэдэгдэл турших",
+    preview: "Туршилтын төлөв — аудио таних холболт хийгдээгүй",
     title: "Гэр",
     back: "Буцах",
     listen: "Сонсох",

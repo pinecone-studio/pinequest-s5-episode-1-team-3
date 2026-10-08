@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Keyboard, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ListenButton } from "@/components/ListenButton";
+import { PillButton } from "@/components/PillButton";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { colors, fontSize, radius, sizes, spacing } from "@/components/theme";
@@ -43,6 +44,7 @@ export default function QueueScreen() {
           {ticket ? <WaitingDetails ticket={ticket} /> : <TicketInput value={input} error={error} scale={scale} onChange={(value) => { setInput(value); setError(false); }} onSubmit={toggleListening} />}
         </View>
       </View>
+      {ticket && <PillButton label={t.testAlert} icon="notifications-outline" onPress={() => router.push({ pathname: "/alert", params: { kind: "queue", ticket } })} />}
       <QueueNotice />
     </ScreenContainer>
   );
