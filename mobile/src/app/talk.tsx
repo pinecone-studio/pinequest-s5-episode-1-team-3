@@ -1,85 +1,70 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { ActionButton } from "@/components/ActionButton";
-import { Chip } from "@/components/Chip";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { colors, fontSize, radius, sizes, spacing } from "@/components/theme";
+import { TalkPhraseCard } from "@/components/TalkPhraseCard";
+import { TalkSignPreview } from "@/components/TalkSignPreview";
+import { colors, fontSize, radius, spacing } from "@/components/theme";
+import { useTalkSpeech } from "@/hooks/useTalkSpeech";
+import { PHRASE_IDS, type PhraseId } from "@/lib/talk";
 import { strings } from "@/strings";
 
 const t = strings.talk;
 
-const BADGE_ICON_SIZE = 20;
-
 export default function TalkScreen() {
   const router = useRouter();
-  const [reply, setReply] = useState("");
-  // Design only: showing the reply to the staff member is not wired up yet.
-  const showReply = () => undefined;
+  const speech = useTalkSpeech();
+  const [previewPhrase, setPreviewPhrase] = useState<PhraseId | null>(null);
+  const preview = (phrase: PhraseId) => {
+    speech.stop();
+    setPreviewPhrase(phrase);
+  };
+  const goBack = () => {
+    speech.stop();
+    if (router.canGoBack()) { router.back(); return; }
+    router.replace("/");
+  };
 
   return (
     <ScreenContainer>
-      <ScreenHeader title={t.title} backLabel={t.back} onBack={() => router.back()} />
-      <View style={styles.badge}>
-        <Ionicons name="ear-outline" size={BADGE_ICON_SIZE} color={colors.infoText} />
-        <Text style={styles.badgeLabel}>{t.staff}</Text>
-      </View>
-      {/* Sample text for now; becomes the talk mode transcript from the server. */}
-      <View accessibilityLiveRegion="polite" style={styles.transcript}>
-        <Text style={styles.transcriptText}>{t.sampleTranscript}</Text>
-      </View>
-      <TextInput
-        accessibilityLabel={t.inputLabel}
-        value={reply}
-        onChangeText={setReply}
-        placeholder={t.inputPlaceholder}
-        placeholderTextColor={colors.textMuted}
-        multiline
-        style={styles.input}
-      />
-      <View style={styles.replies}>
-        {t.quickReplies.map((phrase) => (
-          <Chip key={phrase} label={phrase} onPress={() => setReply(phrase)} />
-        ))}
-      </View>
-      <ActionButton label={t.show} icon="megaphone-outline" onPress={showReply} />
+      <ScreenHeader title={t.title} backLabel={t.back} onBack={goBack} />
+      <Text style={styles.instruction}>{t.instruction}</Text>
+      <Text style={styles.category}>{t.category}</Text>
+      {PHRASE_IDS.map((phrase) => <TalkPhraseCard key={phrase} phrase={phrase} selected={speech.selected === phrase} disabled={speech.loading} onSelect={() => speech.select(phrase)} onSpeak={() => void speech.speak(phrase)} onPreview={() => preview(phrase)} />)}
+      <SpeechOutput speech={speech} />
+      {previewPhrase && <TalkSignPreview phrase={previewPhrase} onClose={() => setPreviewPhrase(null)} />}
+      <Text style={styles.source}>{t.source}</Text>
     </ScreenContainer>
   );
 }
 
+function SpeechOutput({ speech }: { speech: ReturnType<typeof useTalkSpeech> }) {
+  const phrase = speech.selected;
+  if (!phrase) return null;
+  return (
+    <View style={styles.output}>
+      <Text style={styles.instruction}>{t.selected}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.selectedText}>{t.phrases[phrase]}</Text>
+      {speech.loading && <Text accessibilityLiveRegion="polite" style={styles.instruction}>{t.loading}</Text>}
+      {speech.playing && <Text accessibilityLiveRegion="polite" style={styles.instruction}>{t.playing}</Text>}
+      {speech.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.instruction}>{t.errors[speech.error]}</Text>}
+      <View style={styles.controls}>
+        <View style={styles.control}><ActionButton label={t.repeat} icon="refresh-outline" disabled={speech.loading} onPress={() => void speech.speak(phrase)} /></View>
+        <View style={styles.control}><ActionButton label={t.stop} icon="stop-outline" disabled={!speech.loading && !speech.playing} onPress={speech.stop} /></View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  badge: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.infoMuted,
-    borderRadius: radius.full,
-  },
-  badgeLabel: { fontSize: fontSize.body, fontWeight: "600", color: colors.infoText },
-  transcript: {
-    padding: spacing.lg,
-    backgroundColor: colors.infoSoft,
-    borderWidth: 1,
-    borderColor: colors.infoMuted,
-    borderRadius: radius.card,
-  },
-  transcriptText: { fontSize: fontSize.screenTitle, fontWeight: "800", color: colors.text },
-  input: {
-    minHeight: sizes.minTouch,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    fontSize: fontSize.body,
-    color: colors.text,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-  },
-  replies: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  instruction: { fontSize: fontSize.body, color: colors.textMuted },
+  category: { alignSelf: "flex-start", padding: spacing.md, backgroundColor: colors.primarySoft, borderRadius: radius.icon, fontSize: fontSize.body, fontWeight: "700", color: colors.primary },
+  output: { gap: spacing.lg, padding: spacing.xl, backgroundColor: colors.primarySoft, borderRadius: radius.card },
+  selectedText: { fontSize: fontSize.title + spacing.sm, color: colors.text, fontWeight: "800" },
+  controls: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  control: { flexGrow: 1 },
+  source: { fontSize: fontSize.body, color: colors.textMuted, textAlign: "center" },
 });

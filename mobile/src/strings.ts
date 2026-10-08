@@ -64,18 +64,6 @@ export const strings = {
   talk: {
     title: "Харилцах",
     back: "Буцах",
-    // Keep the previous talk screen working until the screen PR is merged.
-    staff: "Ажилтан",
-    sampleTranscript: "Та захиалгын дугаараа хэлнэ үү.",
-    inputLabel: "Хариу бичих",
-    inputPlaceholder: "Миний дугаар 125",
-    quickReplies: [
-      "Дахин хэлнэ үү",
-      "Бичгээр харуулна уу",
-      "Удаан ярина уу",
-      "Баярлалаа",
-    ],
-    show: "Харуулах",
     instruction: "Дохио сонгоод хэлүүлээрэй",
     category: "Өдөр тутам",
     phrases: { greeting: "Сайн байна уу?", thanks: "Баярлалаа" },
