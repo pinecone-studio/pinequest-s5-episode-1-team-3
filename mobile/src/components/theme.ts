@@ -2,10 +2,16 @@
 export const colors = {
   background: "#FFFFFF",
   surface: "#F9FAFB",
+  surfaceMuted: "#F3F4F6",
   border: "#E5E7EB",
   text: "#111827",
+  textMuted: "#4B5563",
   primary: "#4F46E5",
   primarySoft: "#EEF0FF",
+  info: "#3B82F6",
+  infoSoft: "#F0F9FF",
+  infoMuted: "#DBEAFE",
+  infoText: "#075985",
   success: "#4BA257",
   successRing: "#C8E6CF",
   switchOff: "#D1D5DB",
@@ -46,4 +52,5 @@ export const sizes = {
   listenCircle: 160,
   listenRing: 8,
   listenIcon: 36,
+  itemIcon: 44,
 } as const;
