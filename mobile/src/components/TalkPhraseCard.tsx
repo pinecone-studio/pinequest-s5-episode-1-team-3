@@ -9,9 +9,10 @@ import { strings } from "@/strings";
 
 const t = strings.talk;
 const SIGN_ASPECT_RATIO = 960 / 390;
+// Bundle raster copies so native SVG decoder differences cannot hide the signs.
 const ILLUSTRATIONS: Record<PhraseId, number> = {
-  greeting: require("../../assets/images/signGreetingSequence.svg"),
-  thanks: require("../../assets/images/signThanksSequence.svg"),
+  greeting: require("../../assets/images/signGreetingSequence.png"),
+  thanks: require("../../assets/images/signThanksSequence.png"),
 };
 
 type Props = {
