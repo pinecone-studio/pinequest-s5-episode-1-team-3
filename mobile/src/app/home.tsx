@@ -3,6 +3,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ListenButton } from "@/components/ListenButton";
+import { PillButton } from "@/components/PillButton";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { ToggleRow } from "@/components/ToggleRow";
@@ -59,7 +60,20 @@ export default function HomeModeScreen() {
           <ToggleRow label={t.sounds.alarm} icon="alarm-outline" value={enabled.alarm} onValueChange={setSound("alarm")} />
         </View>
       </View>
+      {listening && <HomeAlertPreview enabled={enabled} />}
     </ScreenContainer>
+  );
+}
+
+function HomeAlertPreview({ enabled }: { enabled: Record<SoundKey, boolean> }) {
+  const router = useRouter();
+
+  return (
+    <View style={styles.toggles}>
+      {enabled.knock && <PillButton label={t.testKnock} icon="hand-right-outline" onPress={() => router.push({ pathname: "/alert", params: { kind: "knock" } })} />}
+      {enabled.bell && <PillButton label={t.testDoorbell} icon="notifications-outline" onPress={() => router.push({ pathname: "/alert", params: { kind: "doorbell" } })} />}
+      <Text style={[styles.hint, { fontSize: fontSize.body }]}>{t.preview}</Text>
+    </View>
   );
 }
 
