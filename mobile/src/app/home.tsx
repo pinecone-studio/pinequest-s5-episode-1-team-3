@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ListenButton } from "@/components/ListenButton";
@@ -9,6 +9,9 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { ToggleRow } from "@/components/ToggleRow";
 import { fontSize, colors, spacing } from "@/components/theme";
 import { useLayout } from "@/hooks/useLayout";
+import { useListener } from "@/hooks/useListener";
+import type { AlertKind } from "@/lib/alerts";
+import type { DetectionResult } from "@/lib/types";
 import { scaleFont } from "@/lib/responsive";
 import { strings } from "@/strings";
 
@@ -25,9 +28,32 @@ const INITIAL_ENABLED: Record<SoundKey, boolean> = {
 export default function HomeModeScreen() {
   const router = useRouter();
   const { scale, isWide } = useLayout();
-  // Local state for now; swap for useListener once real audio exists.
-  const [listening, setListening] = useState(false);
   const [enabled, setEnabled] = useState(INITIAL_ENABLED);
+  // Хэрэглэгч сонсохыг хүссэн эсэх. Мэдэгдлийн дэлгэц нээгдэхэд түр зогсоод, буцахад үргэлжилнэ.
+  const wanted = useRef(false);
+
+  const onResult = (result: DetectionResult) => {
+    const kind = alertKindFor(result, enabled);
+    if (!kind) return;
+    listener.stop();
+    router.push({ pathname: "/alert", params: { kind } });
+  };
+  const listener = useListener({ mode: "home", onResult });
+  const { start, stop } = listener;
+  const listening = listener.listening;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (wanted.current) void start();
+      return stop;
+    }, [start, stop]),
+  );
+
+  const toggleListening = () => {
+    wanted.current = !listening;
+    if (listening) stop();
+    else void start();
+  };
 
   const setSound = (key: SoundKey) => (value: boolean) =>
     setEnabled((prev) => ({ ...prev, [key]: value }));
@@ -46,11 +72,16 @@ export default function HomeModeScreen() {
             listening={listening}
             idleLabel={t.listen}
             activeLabel={t.listening}
-            onPress={() => setListening((prev) => !prev)}
+            onPress={toggleListening}
           />
           {listening && (
             <Text style={[styles.hint, { fontSize: scaleFont(fontSize.body, scale) }]}>
               {t.tapToStop}
+            </Text>
+          )}
+          {listener.error && (
+            <Text accessibilityRole="alert" style={[styles.error, { fontSize: scaleFont(fontSize.body, scale) }]}>
+              {t.errors[listener.error]}
             </Text>
           )}
         </View>
@@ -63,6 +94,14 @@ export default function HomeModeScreen() {
       {listening && <HomeAlertPreview enabled={enabled} />}
     </ScreenContainer>
   );
+}
+
+// Сервер «хаалга», «хонх» гэж таньсан ба хэрэглэгч тэр дууг асаасан бол мэдэгдэнэ.
+function alertKindFor(result: DetectionResult, enabled: Record<SoundKey, boolean>): AlertKind | null {
+  const label = result.sound?.label;
+  if (label === "knock" && enabled.knock) return "knock";
+  if (label === "doorbell" && enabled.bell) return "doorbell";
+  return null;
 }
 
 function HomeAlertPreview({ enabled }: { enabled: Record<SoundKey, boolean> }) {
@@ -84,4 +123,5 @@ const styles = StyleSheet.create({
   center: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
   toggles: { gap: spacing.lg },
   hint: { color: colors.text },
+  error: { color: colors.danger, textAlign: "center" },
 });
