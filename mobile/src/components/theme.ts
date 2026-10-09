@@ -14,6 +14,9 @@ export const colors = {
   infoText: "#075985",
   success: "#4BA257",
   successRing: "#C8E6CF",
+  danger: "#B91C1C",
+  dangerSoft: "#FEF2F2",
+  dangerBorder: "#FECACA",
   switchOff: "#D1D5DB",
   white: "#FFFFFF",
   mode: {
