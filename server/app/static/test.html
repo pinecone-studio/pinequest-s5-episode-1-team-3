@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сонсъё · сервер туршилт</title>
+<style>
+  :root { --bg:#0c0e29; --card:#1c1e52; --text:#fff; --muted:#b8b9e8; --primary:#4f46e5; --on:#16a34a; }
+  * { box-sizing:border-box; font-family:system-ui, sans-serif; }
+  body { margin:0; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:20px; padding:24px 16px; }
+  h1 { margin:0; font-size:28px; }
+  .modes { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .modes button { border:0; border-radius:999px; padding:12px 20px; font-size:18px; background:var(--card); color:var(--muted); cursor:pointer; }
+  .modes button.active { background:var(--primary); color:#fff; }
+  input { font-size:28px; padding:12px 16px; border-radius:16px; border:2px solid var(--primary); width:220px; text-align:center; }
+  #listen { width:200px; height:200px; border-radius:50%; border:0; background:var(--primary); color:#fff; font-size:22px; font-weight:700; cursor:pointer; box-shadow:0 0 0 0 transparent; }
+  #listen.on { background:var(--on); box-shadow:0 0 0 14px rgba(22,163,74,.25); }
+  #status { color:var(--muted); font-size:16px; min-height:20px; }
+  #log { width:min(560px,100%); font-size:15px; color:var(--muted); }
+  #log div { padding:6px 0; border-bottom:1px solid #2a2c66; }
+  #alert { position:fixed; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:12px; text-align:center; cursor:pointer; }
+  #alert .big { font-size:160px; font-weight:800; line-height:1; }
+  #alert .title { font-size:48px; font-weight:800; }
+</style>
+</head>
+<body>
+  <h1>Сонсъё</h1>
+  <div class="modes" id="modes">
+    <button data-mode="home" class="active">Гэр</button>
+    <button data-mode="queue">Дугаар</button>
+    <button data-mode="name">Нэр</button>
+    <button data-mode="talk">Ярих</button>
+  </div>
+  <input id="ticket" placeholder="А024" hidden>
+  <input id="name" placeholder="Болд" hidden>
+  <button id="listen">Сонсох</button>
+  <div id="status"></div>
+  <div id="log"></div>
+  <div id="alert"></div>
+<script>
+const CHUNK_MS = 3000;
+const ALERTS = {
+  knock: ['#f59e0b', 'Хаалга тогшлоо'], doorbell: ['#3b82f6', 'Хонх дуугарлаа'], alarm: ['#dc2626', 'Сэрүүлэг'],
+};
+let mode = 'home', stream = null, running = false;
+const $ = (id) => document.getElementById(id);
+
+document.querySelectorAll('#modes button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('#modes button').forEach((x) => x.classList.remove('active'));
+  b.classList.add('active'); mode = b.dataset.mode;
+  $('ticket').hidden = mode !== 'queue'; $('name').hidden = mode !== 'name';
+});
+
+function showAlert(color, title, big) {
+  const a = $('alert');
+  a.style.background = color; a.style.display = 'flex';
+  a.innerHTML = (big ? `<div>Цонх</div><div class="big">${big}</div>` : '') + `<div class="title">${title}</div><div>Хаахдаа хүрнэ үү</div>`;
+  if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]);
+}
+$('alert').onclick = () => { $('alert').style.display = 'none'; };
+
+function handle(result) {
+  const line = document.createElement('div');
+  line.textContent = `${result.latencyMs} ms · ${result.sound ? result.sound.label + ' ' + result.sound.score : ''} ${result.transcript || ''}`;
+  $('log').prepend(line);
+  if (result.match && result.match.type === 'queue') showAlert('#16a34a', `Таны ээлж · ${result.match.value}`, result.match.window ?? '');
+  else if (result.match && result.match.type === 'name') showAlert('#9333ea', 'Таныг дуудлаа');
+  else if (result.sound && ALERTS[result.sound.label]) showAlert(...ALERTS[result.sound.label]);
+}
+
+async function sendChunk(blob) {
+  const form = new FormData();
+  form.append('audio', blob, 'clip.webm'); form.append('mode', mode);
+  if (mode === 'queue') form.append('ticket', $('ticket').value);
+  if (mode === 'name') form.append('name', $('name').value);
+  const response = await fetch('/api/v1/detect', { method: 'POST', body: form });
+  const body = await response.json();
+  if (!response.ok) { $('status').textContent = body.error ? body.error.message : 'Алдаа'; return; }
+  handle(body);
+}
+
+function recordOnce() {
+  return new Promise((resolve) => {
+    const recorder = new MediaRecorder(stream); const parts = [];
+    recorder.ondataavailable = (e) => parts.push(e.data);
+    recorder.onstop = () => resolve(new Blob(parts, { type: recorder.mimeType }));
+    recorder.start(); setTimeout(() => recorder.stop(), CHUNK_MS);
+  });
+}
+
+async function loop() {
+  while (running) {
+    const blob = await recordOnce();
+    if (!running) break;
+    sendChunk(blob).catch(() => { $('status').textContent = 'Сервертэй холбогдож чадсангүй'; });
+  }
+}
+
+$('listen').onclick = async () => {
+  if (running) { running = false; stream.getTracks().forEach((t) => t.stop()); $('listen').classList.remove('on'); $('listen').textContent = 'Сонсох'; $('status').textContent = ''; return; }
+  stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  running = true; $('listen').classList.add('on'); $('listen').textContent = 'Сонсож байна'; $('status').textContent = 'Дахин дарж зогсооно';
+  loop();
+};
+</script>
+</body>
+</html>
