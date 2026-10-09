@@ -5,7 +5,7 @@ import { Modal, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { config } from "@/config";
-import type { PhraseId } from "@/lib/talk";
+import type { IncomingSignId } from "@/lib/incomingSigns";
 import { strings } from "@/strings";
 
 import { ActionButton } from "./ActionButton";
@@ -14,8 +14,10 @@ import { colors, fontSize, spacing } from "./theme";
 const t = strings.talk;
 const SIGN_ASPECT_RATIO = 4 / 3;
 
-export function TalkSignPreview({ phrase, onClose }: { phrase: PhraseId; onClose: () => void }) {
-  const uri = phrase === "greeting" ? config.greetingSignUrl : config.thanksSignUrl;
+export function TalkSignPreview({ phrase, onClose }: { phrase: IncomingSignId; onClose: () => void }) {
+  const urls: Record<IncomingSignId, string> = { greeting: config.greetingSignUrl, thanks: config.thanksSignUrl,
+    sorry: config.sorrySignUrl, goodbye: config.goodbyeSignUrl, helpQuestion: config.helpSignUrl };
+  const uri = urls[phrase];
   const player = useVideoPlayer(uri || null, (video) => {
     video.muted = true;
   });
@@ -29,7 +31,8 @@ export function TalkSignPreview({ phrase, onClose }: { phrase: PhraseId; onClose
     <Modal visible animationType="none" onRequestClose={close}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.content}>
-          <Text accessibilityRole="header" style={styles.title}>{t.phrases[phrase]}</Text>
+          <Text accessibilityRole="header" style={styles.title}>{t.incoming.phrases[phrase]}</Text>
+          {phrase === "helpQuestion" && <Text style={styles.message}>{t.incoming.helpNotice}</Text>}
           <VideoView player={player} nativeControls contentFit="contain" style={styles.video} />
           {status === "loading" && <Text accessibilityLiveRegion="polite" style={styles.message}>{t.videoLoading}</Text>}
           {(!uri || status === "error") && <Text accessibilityRole="alert" style={styles.message}>{t.signUnavailable}</Text>}
