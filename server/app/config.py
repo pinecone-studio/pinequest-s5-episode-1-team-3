@@ -9,6 +9,7 @@ class Settings:
     elevenlabs_url: str
     elevenlabs_model: str
     cors_origins: tuple[str, ...]
+    elevenlabs_stt_model: str = "scribe_v2"
 
 
 def load_settings() -> Settings:
@@ -17,6 +18,7 @@ def load_settings() -> Settings:
         elevenlabs_voice_id=os.getenv("ELEVENLABS_VOICE_ID", ""),
         elevenlabs_url=os.getenv("ELEVENLABS_API_URL", ""),
         elevenlabs_model=os.getenv("ELEVENLABS_MODEL", "eleven_v4"),
+        elevenlabs_stt_model=os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2"),
         cors_origins=tuple(
             origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()
         ),
