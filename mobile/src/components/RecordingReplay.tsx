@@ -10,7 +10,8 @@ import { colors, fontSize } from "./theme";
 const t = strings.talk.incoming;
 
 export function RecordingReplay({ uri, onPlay, onBusy }: { uri: string; onPlay: () => void; onBusy: (busy: boolean) => void }) {
-  const player = useAudioPlayer(null);
+  // This player shares the session with the microphone and outgoing speech player.
+  const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
   const request = useRef<AbortController | null>(null);
   const [loading, setLoading] = useState(false);
