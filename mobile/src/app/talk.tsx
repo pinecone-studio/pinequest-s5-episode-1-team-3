@@ -3,6 +3,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ActionButton } from "@/components/ActionButton";
+import { IncomingTalkPanel } from "@/components/IncomingTalkPanel";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { TalkPhraseCard } from "@/components/TalkPhraseCard";
@@ -18,6 +19,7 @@ export default function TalkScreen() {
   const router = useRouter();
   const speech = useTalkSpeech();
   const [previewPhrase, setPreviewPhrase] = useState<PhraseId | null>(null);
+  const [incomingBusy, setIncomingBusy] = useState(false);
   const preview = (phrase: PhraseId) => {
     speech.stop();
     setPreviewPhrase(phrase);
@@ -31,17 +33,18 @@ export default function TalkScreen() {
   return (
     <ScreenContainer>
       <ScreenHeader title={t.title} backLabel={t.back} onBack={goBack} />
+      <IncomingTalkPanel onListen={speech.stop} onBusy={setIncomingBusy} />
       <Text style={styles.instruction}>{t.instruction}</Text>
       <Text style={styles.category}>{t.category}</Text>
-      {PHRASE_IDS.map((phrase) => <TalkPhraseCard key={phrase} phrase={phrase} selected={speech.selected === phrase} disabled={speech.loading} onSelect={() => speech.select(phrase)} onSpeak={() => void speech.speak(phrase)} onPreview={() => preview(phrase)} />)}
-      <SpeechOutput speech={speech} />
+      {PHRASE_IDS.map((phrase) => <TalkPhraseCard key={phrase} phrase={phrase} selected={speech.selected === phrase} disabled={speech.loading || incomingBusy} onSelect={() => speech.select(phrase)} onSpeak={() => void speech.speak(phrase)} onPreview={() => { if (!incomingBusy) preview(phrase); }} />)}
+      <SpeechOutput speech={speech} disabled={incomingBusy} />
       {previewPhrase && <TalkSignPreview phrase={previewPhrase} onClose={() => setPreviewPhrase(null)} />}
       <Text style={styles.source}>{t.source}</Text>
     </ScreenContainer>
   );
 }
 
-function SpeechOutput({ speech }: { speech: ReturnType<typeof useTalkSpeech> }) {
+function SpeechOutput({ speech, disabled }: { speech: ReturnType<typeof useTalkSpeech>; disabled: boolean }) {
   const phrase = speech.selected;
   if (!phrase) return null;
   return (
@@ -52,7 +55,7 @@ function SpeechOutput({ speech }: { speech: ReturnType<typeof useTalkSpeech> }) 
       {speech.playing && <Text accessibilityLiveRegion="polite" style={styles.instruction}>{t.playing}</Text>}
       {speech.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.instruction}>{t.errors[speech.error]}</Text>}
       <View style={styles.controls}>
-        <View style={styles.control}><ActionButton label={t.repeat} icon="refresh-outline" disabled={speech.loading} onPress={() => void speech.speak(phrase)} /></View>
+        <View style={styles.control}><ActionButton label={t.repeat} icon="refresh-outline" disabled={speech.loading || disabled} onPress={() => void speech.speak(phrase)} /></View>
         <View style={styles.control}><ActionButton label={t.stop} icon="stop-outline" disabled={!speech.loading && !speech.playing} onPress={speech.stop} /></View>
       </View>
     </View>
