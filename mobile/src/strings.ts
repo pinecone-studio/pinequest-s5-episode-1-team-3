@@ -116,4 +116,28 @@ export const strings = {
       xlarge: "Маш том",
     },
   },
+  help: {
+    title: "Тусламж",
+    back: "Буцах",
+    interpreter: "Хэлмэрч (видео)",
+    connect: "Холбогдох",
+    unavailable: "Хэлмэрчтэй холбогдож чадсангүй",
+    staffCard: "Ажилтанд үзүүлэх карт",
+    card: {
+      message: "Би сонсголын бэрхшээлтэй.",
+      request: "Надтай бичгээр харилцана уу.",
+      close: "Хаах",
+    },
+  },
+  error: {
+    title: "Алдаа",
+    back: "Буцах",
+    messages: {
+      network: "Интернэт алга",
+      server: "Сервер хариу өгсөнгүй",
+    },
+    retry: "Дахин",
+    checking: "Шалгаж байна…",
+    home: "Гэр",
+  },
 } as const;
