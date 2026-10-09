@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="390" viewBox="0 0 960 390" role="img" aria-labelledby="title description">
+  <title id="title">Сайн байна уу? — дохионы дарааллын ноорог</title>
+  <desc id="description">mnsl.mn-ийн 0028 бичлэгийн 0.70, 1.05, 1.75 секундийн байрлалыг хялбаршуулсан гурван зураг. Урд талаас харуулсан, толин тусгал болгоогүй. Сум нь панелын дарааллыг заана. Хуруу, алганы эргэлт, нүүрний хувирал, хөдөлгөөний замыг дохионы хэл мэддэг хүнээр баталгаажуулна. Бичлэгийг орлох сургалтын заавар биш.</desc>
+  <metadata>Reference: mnsl.mn/ug/28-сайн-байна-уу/. Draft, not reviewed. Source rights must be verified before public distribution.</metadata>
+  <defs>
+    <g id="person" fill="none" stroke="#263348" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M45 296 49 213Q54 183 91 177L107 173M149 173 165 177Q201 183 207 213L212 296" fill="#e9e5ff"/>
+      <path d="M107 155 107 173 128 195 149 173 149 155" fill="#fff9f3"/>
+      <path d="M91 177 109 207 128 195 148 207 165 177"/>
+      <path d="M128 196V294M65 230 69 296M188 230 186 296"/>
+      <path d="M79 96Q72 92 75 110L84 124M177 96Q184 92 181 110L172 124" fill="#fff9f3"/>
+      <path d="M79 82Q80 40 128 40 176 40 177 82L177 120Q176 145 155 159 143 168 128 168 112 168 100 159 80 145 79 120Z" fill="#fff9f3"/>
+      <path d="M79 98Q68 74 80 53 94 29 128 30 162 29 177 53 187 75 177 98L170 83Q152 79 135 59 128 49 121 62 105 80 86 83Z" fill="#263348"/>
+      <path d="M91 60Q99 47 112 44" stroke="#66758a" stroke-width="4"/>
+      <path d="M96 94Q104 90 112 94M145 94Q153 90 161 94" stroke-width="2.5"/>
+      <ellipse cx="104" cy="110" rx="5.5" ry="7" fill="#263348" stroke="none"/>
+      <ellipse cx="153" cy="110" rx="5.5" ry="7" fill="#263348" stroke="none"/>
+      <circle cx="106" cy="108" r="1.8" fill="#fff" stroke="none"/>
+      <circle cx="155" cy="108" r="1.8" fill="#fff" stroke="none"/>
+      <ellipse cx="94" cy="128" rx="9" ry="5" fill="#f4b6bd" fill-opacity="0.65" stroke="none"/>
+      <ellipse cx="164" cy="128" rx="9" ry="5" fill="#f4b6bd" fill-opacity="0.65" stroke="none"/>
+      <path d="M127 119Q124 128 130 128" stroke-width="2.2"/>
+      <path d="M118 141Q128 146 138 141" stroke-width="2.6"/>
+    </g>
+    <g id="upright-hand" fill="#fff9f3" stroke="#263348" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M92 151 94 131 82 105Q79 98 84 96 89 95 92 103L98 114 103 80Q103 72 108 73 113 74 112 81L110 103 115 70Q117 63 121 66 125 68 123 75L120 103 126 76Q128 70 132 73 136 75 133 82L128 106 135 87Q138 82 142 85 146 88 142 95L136 117Q133 129 126 139L125 153Z"/>
+      <path d="M98 114 108 122M106 135Q114 129 123 130M111 103 110 115M121 103 118 116M128 106 125 119"/>
+    </g>
+    <g id="chest-hand" fill="#fff9f3" stroke="#263348" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M113 208 131 190 132 169Q132 161 137 162 142 162 140 170L140 179 171 151Q178 145 181 149 184 153 178 158L159 176 185 153Q191 148 194 153 197 157 191 161L165 183 187 166Q193 162 195 167 197 171 192 175L170 191 187 181Q192 178 194 182 196 186 190 190L167 205Q153 215 136 224Z"/>
+      <path d="M140 179 146 189M144 207 153 199M159 176 153 182M165 183 157 190M170 191 162 197"/>
+    </g>
+    <g id="upward-palm" fill="#fff9f3" stroke="#263348" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M103 237 119 222 99 210Q91 205 94 201 97 197 104 201L124 211 153 204Q162 201 163 206 164 210 157 211L141 216 169 209Q177 207 177 212 177 216 170 217L143 223 168 218Q176 217 175 222 174 226 168 227L146 231 161 228Q168 228 167 232 165 236 158 237L143 242Q127 249 113 254Z"/>
+      <path d="M119 222 131 225M125 232Q134 237 145 233M138 216 141 219"/>
+    </g>
+    <g id="next" fill="none" stroke="#4f46e5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 0H19M12-7 19 0 12 7"/>
+    </g>
+  </defs>
+  <rect width="960" height="390" rx="24" fill="#fff"/>
+  <g fill="#f0f9ff" stroke="#c6dbea" stroke-width="1.5">
+    <rect x="12" y="12" width="288" height="366" rx="20"/>
+    <rect x="336" y="12" width="288" height="366" rx="20"/>
+    <rect x="660" y="12" width="288" height="366" rx="20"/>
+  </g>
+  <g fill="#4f46e5">
+    <circle cx="44" cy="44" r="19"/>
+    <circle cx="368" cy="44" r="19"/>
+    <circle cx="692" cy="44" r="19"/>
+  </g>
+  <g fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M41 38 45 34V54M41 54H49"/>
+    <path d="M363 38Q366 33 371 35 377 38 373 43L363 53H375"/>
+    <path d="M687 36Q699 32 698 39 697 44 691 44 699 43 698 50 696 57 687 52"/>
+  </g>
+  <g transform="translate(28 70)">
+    <use href="#person"/>
+    <path d="M61 258Q44 244 57 220L92 149 125 153 96 238Q82 270 61 258Z" fill="#fff9f3" stroke="#263348" stroke-width="3.2" stroke-linejoin="round"/>
+    <use href="#upright-hand"/>
+  </g>
+  <g transform="translate(352 70)">
+    <use href="#person"/>
+    <path d="M59 274Q43 259 62 245L113 208 136 224 89 267Q70 287 59 274Z" fill="#fff9f3" stroke="#263348" stroke-width="3.2" stroke-linejoin="round"/>
+    <use href="#chest-hand"/>
+  </g>
+  <g transform="translate(676 70)">
+    <use href="#person"/>
+    <path d="M62 271Q49 258 67 249L103 237 113 254 83 274Q70 282 62 271Z" fill="#fff9f3" stroke="#263348" stroke-width="3.2" stroke-linejoin="round"/>
+    <use href="#upward-palm"/>
+  </g>
+  <use href="#next" x="307" y="194"/>
+  <use href="#next" x="631" y="194"/>
+</svg>
