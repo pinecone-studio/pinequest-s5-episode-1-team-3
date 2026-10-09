@@ -75,7 +75,9 @@ def test_endpoint_returns_audio(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_unknown_phrase_is_rejected() -> None:
     response = TestClient(app).get("/api/v1/talk/speech?phrase=arbitrary-text")
-    assert response.status_code == 422
+    # Бүх алдаа нэг хэлбэртэй (AGENTS.md → API гэрээ)
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "BAD_REQUEST"
 
 
 def test_endpoint_missing_configuration_has_error_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
