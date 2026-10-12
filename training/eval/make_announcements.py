@@ -29,7 +29,8 @@ from pathlib import Path
 SEED = 20261012
 PER_DOMAIN = 100
 TEST_PER_DOMAIN = 20
-NAME_SHARE = {"bank": 0.0, "hospital": 0.4, "gov": 0.0}
+# Нэр дуудлага одоогоор аль ч хэсэгт байхгүй (багийн шийдвэр). Хувийг өсгөвөл NAME_TEMPLATES-д загвар нэмнэ.
+NAME_SHARE = {"bank": 0.0, "hospital": 0.0, "gov": 0.0}
 SMALL_SHARE = 0.3
 TICKET_DIGITS = 3
 MAX_WINDOW = 12
@@ -176,12 +177,7 @@ QUEUE_TEMPLATES: dict[str, list[QueueTemplate]] = {
 }
 
 # {n} — нэр (нэрлэх тийн ялгал, өөрчлөгдөхгүй), {r} — өрөө, {w} — цонх
-NAME_TEMPLATES: dict[str, list[QueueTemplate]] = {
-    "hospital": [
-        ("{n} гэдэг үйлчлүүлэгч {w} цонхонд очно уу.", "цонх"),
-        ("{n} гэдэг үйлчлүүлэгч {r} өрөөнд орно уу.", "өрөө"),
-    ],
-}
+NAME_TEMPLATES: dict[str, list[QueueTemplate]] = {}
 
 
 def random_ticket(rng: random.Random, rules: TicketRules) -> Ticket:
