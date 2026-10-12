@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { ActionButton } from "@/components/ActionButton";
@@ -9,9 +9,9 @@ import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { colors, fontSize, spacing } from "@/components/theme";
 import type { IconName } from "@/components/types";
+import { useHistory } from "@/hooks/useHistory";
 import { ALERTS, type AlertKind } from "@/lib/alerts";
 import { formatHistoryTime, type HistoryEntry, type HistoryMode, historyMode } from "@/lib/history";
-import { clearHistory, listHistory } from "@/services/storage/history";
 import { strings } from "@/strings";
 
 const t = strings.history;
@@ -37,24 +37,7 @@ function entryTitle(entry: HistoryEntry): string {
 export default function HistoryScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const [loadError, setLoadError] = useState(false);
-
-  const load = useCallback(() => {
-    listHistory()
-      .then((rows) => {
-        setEntries(rows);
-        setLoadError(false);
-      })
-      .catch(() => setLoadError(true));
-  }, []);
-  // Мэдэгдлээс буцаж ирэх бүрт шинэ мөр харагдана.
-  useFocusEffect(load);
-
-  const clear = () => {
-    clearHistory().then(load, () => setLoadError(true));
-  };
-
+  const { entries, error: loadError, clear } = useHistory();
   const now = new Date();
   const visible = entries.filter((entry) => filter === "all" || historyMode(entry.kind) === filter);
 
