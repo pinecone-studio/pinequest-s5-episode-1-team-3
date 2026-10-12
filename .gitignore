@@ -22,6 +22,8 @@ data/
 *.safetensors
 *.tflite
 *.onnx
+*.joblib
+*.npz
 
 # Python
 .venv/
