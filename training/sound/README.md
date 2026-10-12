@@ -26,4 +26,6 @@ data/
 
 ```bash
 .venv/bin/python prepare.py    # 5 ангилал руу хөрвүүлж, 16kHz mono болгоно → data/manifest.csv
+sh ../../server/scripts/download_models.sh   # сервертэй ижил yamnet.tflite
+.venv/bin/python features.py   # YAMNet 521 онооны дундаж + max → data/features.npz
 ```
