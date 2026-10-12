@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -23,6 +24,7 @@ from app.models.stt import MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
 from app.models.tts import SpeechError, SpeechService
 from app.pipeline import run_detection
 from app.schemas import (
+    DetectionResult,
     DetectMode,
     ErrorBody,
     ErrorResponse,
@@ -47,6 +49,13 @@ class Models:
 
 
 models = Models()
+# MediaPipe/Whisper are not guaranteed thread-safe, and phones send a clip every 3 s.
+_models_lock = threading.Lock()
+
+
+def _detect_locked(*args: Any, **kwargs: Any) -> DetectionResult:
+    with _models_lock:
+        return run_detection(*args, **kwargs)
 
 
 @asynccontextmanager
@@ -117,7 +126,7 @@ async def detect(
         return error_response(400, "AUDIO_TOO_LONG", "Аудио хэт урт байна")
 
     result = await run_in_threadpool(
-        run_detection, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
+        _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
     )
     result.latency_ms = round((time.perf_counter() - started) * 1000)
     return JSONResponse(content=result.model_dump(by_alias=True))
