@@ -47,7 +47,8 @@ def pick_label(scores: dict[str, float], min_score: float) -> SoundResult | None
         label = LABEL_MAP.get(name)
         if label is None or score < min_score:
             continue
-        if best is None or score > best.score:
+        # Talking in the room must not hide a knock or doorbell in the same clip.
+        if best is None or (label != "speech", score) > (best.label != "speech", best.score):
             best = SoundResult(label=label, score=round(score, 3))
     return best
 

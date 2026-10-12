@@ -40,3 +40,8 @@ def test_pick_label_maps_yamnet_names():
     assert pick_label({"Buzzer": 0.5}, 0.3) == SoundResult(label="doorbell", score=0.5)
     assert pick_label({"Music": 0.9}, 0.3) is None
     assert pick_label({"Knock": 0.2}, 0.3) is None
+
+
+def test_pick_label_prefers_alert_over_louder_speech():
+    assert pick_label({"Speech": 0.85, "Doorbell": 0.6}, 0.3) == SoundResult(label="doorbell", score=0.6)
+    assert pick_label({"Speech": 0.85}, 0.3) == SoundResult(label="speech", score=0.85)
