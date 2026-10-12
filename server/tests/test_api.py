@@ -1,3 +1,6 @@
+import threading
+import time
+
 import pytest
 from conftest import FakeClassifier, FakeTranscriber, wav_bytes
 from fastapi.testclient import TestClient
@@ -67,3 +70,27 @@ def test_errors_use_contract_format(fake_models, mode, data, audio, status, code
     response = post(mode, data, audio)
     assert response.status_code == status
     assert response.json()["error"]["code"] == code
+
+
+def test_detect_never_runs_models_concurrently(fake_models):
+    running, peak = 0, 0
+    lock = threading.Lock()
+
+    class SlowClassifier:
+        def classify(self, samples):
+            nonlocal running, peak
+            with lock:
+                running += 1
+                peak = max(peak, running)
+            time.sleep(0.2)
+            with lock:
+                running -= 1
+            return SoundResult(label="knock", score=0.9)
+
+    models.classifier = SlowClassifier()
+    threads = [threading.Thread(target=post, args=("home",)) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert peak == 1

@@ -1,9 +1,10 @@
-export const ALERT_KINDS = ["knock", "doorbell", "queue", "name"] as const;
+export const ALERT_KINDS = ["knock", "doorbell", "alarm", "queue", "name"] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
 
 export type AlertIcon =
   | "hand-back-right-outline"
   | "bell-outline"
+  | "alarm-light-outline"
   | "ticket-confirmation-outline"
   | "account-outline";
 
@@ -35,6 +36,13 @@ export const ALERTS: Record<AlertKind, AlertConfig> = {
     color: "#4B82EE",
     accent: "#4B82EE",
     vibration: [0, 600, 300, 600, 800],
+  },
+  alarm: {
+    icon: "alarm-light-outline",
+    title: "Сэрүүлэг дуугарлаа",
+    color: "#C62828",
+    accent: "#C62828",
+    vibration: [0, 800, 200, 800, 200, 800, 800],
   },
   queue: {
     icon: "ticket-confirmation-outline",

@@ -19,14 +19,19 @@ type Options = {
   onResult: (result: DetectionResult) => void;
 };
 
+// API гэрээ: AAC, mono, 16kHz. Илүү өндөр чанар зөвхөн upload-ыг удаашруулна.
+const DETECT_RECORDING = { ...RecordingPresets.HIGH_QUALITY, sampleRate: 16_000, numberOfChannels: 1, bitRate: 32_000 };
+
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Апп даяар ганц сонсогч (AGENTS.md). config.recordChunkMs тутам бичлэгээ
 // сервер рүү илгээж, хариуг хүлээлгүй дараагийн бичлэгээ эхэлнэ.
 export function useListener({ mode, ticket, name, onResult }: Options) {
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(DETECT_RECORDING);
   const active = useRef(false);
   const running = useRef(false);
+  // Зогсоогоод дахин асаахад өмнөх хүсэлтийн хариу шинэ мэдэгдэл үүсгэхгүй.
+  const session = useRef(0);
   const restart = useRef<() => Promise<void>>(async () => undefined);
   const latest = useRef({ mode, ticket, name, onResult });
   const [listening, setListening] = useState(false);
@@ -44,13 +49,15 @@ export function useListener({ mode, ticket, name, onResult }: Options) {
 
   const send = useCallback(async (audioUri: string) => {
     const { onResult: handle, ...request } = latest.current;
+    const id = session.current;
+    const current = () => active.current && id === session.current;
     try {
       const result = await detector.detect({ audioUri, ...request });
-      if (!active.current) return;
+      if (!current()) return;
       setError(null);
       handle(result);
     } catch (cause) {
-      if (!active.current) return;
+      if (!current()) return;
       const noServer = cause instanceof DetectorError && cause.code === "NO_SERVER_URL";
       setError(noServer ? "noServer" : "server");
     }
@@ -89,6 +96,7 @@ export function useListener({ mode, ticket, name, onResult }: Options) {
       return;
     }
     await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    session.current += 1;
     active.current = true;
     setListening(true);
     // Өмнөх давталт бичлэгээ дуусгаж байвал түүнийг үргэлжлүүлнэ

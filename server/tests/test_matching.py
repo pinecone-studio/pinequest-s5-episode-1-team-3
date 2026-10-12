@@ -50,6 +50,15 @@ def test_name_mentioned(text):
     assert name_mentioned(text, "Болд")
 
 
+@pytest.mark.parametrize("text", ["Бат-Эрдэнэ нааш ир", "батэрдэнээ ороорой", "Бат Эрдэнэ"])
+def test_hyphenated_name_mentioned(text):
+    assert name_mentioned(text, "Бат-Эрдэнэ")
+
+
+def test_hyphenated_name_needs_every_part():
+    assert not name_mentioned("Бат ирлээ", "Бат-Эрдэнэ")
+
+
 @pytest.mark.parametrize("text", ["энэ бол сайхан", "болт авчир", ""])
 def test_name_not_mentioned(text):
     assert not name_mentioned(text, "Болд")

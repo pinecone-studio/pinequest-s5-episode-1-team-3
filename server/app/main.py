@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -23,6 +24,7 @@ from app.models.stt import MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
 from app.models.tts import SpeechError, SpeechService
 from app.pipeline import run_detection
 from app.schemas import (
+    DetectionResult,
     DetectMode,
     ErrorBody,
     ErrorResponse,
@@ -47,6 +49,13 @@ class Models:
 
 
 models = Models()
+# MediaPipe/Whisper are not guaranteed thread-safe, and phones send a clip every 3 s.
+_models_lock = threading.Lock()
+
+
+def _detect_locked(*args: Any, **kwargs: Any) -> DetectionResult:
+    with _models_lock:
+        return run_detection(*args, **kwargs)
 
 
 @asynccontextmanager
@@ -104,17 +113,21 @@ async def detect(
     if mode == "name" and not (name and name.strip()):
         return error_response(400, "BAD_NAME", "Нэр хоосон байна")
 
-    data = await audio.read()
+    # Read one byte past the limit so an oversized upload is never loaded whole.
+    data = await audio.read(settings.max_audio_bytes + 1)
     if len(data) > settings.max_audio_bytes:
         return error_response(413, "AUDIO_TOO_LARGE", "Аудио хэт том байна")
     try:
-        samples = decode(data)
+        # Decode and models are CPU-bound; off the event loop so other requests keep flowing.
+        samples = await run_in_threadpool(decode, data)
     except AudioError as exc:
         return error_response(400, "BAD_AUDIO", str(exc))
     if duration_seconds(samples) > settings.max_audio_seconds:
         return error_response(400, "AUDIO_TOO_LONG", "Аудио хэт урт байна")
 
-    result = run_detection(samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name)
+    result = await run_in_threadpool(
+        _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
+    )
     result.latency_ms = round((time.perf_counter() - started) * 1000)
     return JSONResponse(content=result.model_dump(by_alias=True))
 

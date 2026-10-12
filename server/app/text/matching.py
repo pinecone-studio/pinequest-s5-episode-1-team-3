@@ -9,6 +9,7 @@ from difflib import SequenceMatcher
 from app.text.numbers import LETTER_NAMES, QueueCall
 
 NAME_SIMILARITY = 0.8
+_WORD = re.compile(r"[а-яөүёa-z]+")
 _TICKET = re.compile(r"\s*([а-яёөүa-z]?)\s*[-‐–]?\s*(\d{1,4})\s*")
 
 
@@ -48,16 +49,23 @@ def queue_matches(call: QueueCall, ticket: Ticket) -> bool:
     return True
 
 
-def name_mentioned(transcript: str, name: str) -> bool:
-    """«Болдоо», «Болдыг» ≈ «Болд». Нэрээс богино үгийг тооцохгүй («бол» ≠ «Болд»)."""
-    target = name.strip().lower()
-    if not target:
+def _word_matches(word: str, target: str) -> bool:
+    """Нэрээс богино үгийг тооцохгүй («бол» ≠ «Болд»)."""
+    if len(word) < len(target):
         return False
-    for word in re.findall(r"[а-яөүёa-z]+", transcript.lower()):
-        if len(word) < len(target):
-            continue
-        if word.startswith(target):
-            return True
-        if SequenceMatcher(None, word[: len(target)], target).ratio() >= NAME_SIMILARITY:
-            return True
-    return False
+    return (
+        word.startswith(target)
+        or SequenceMatcher(None, word[: len(target)], target).ratio() >= NAME_SIMILARITY
+    )
+
+
+def name_mentioned(transcript: str, name: str) -> bool:
+    """«Болдоо», «Болдыг» ≈ «Болд». «Бат-Эрдэнэ» нь «Бат-Эрдэнэ», «Батэрдэнэ» хоёуланд таарна."""
+    parts = _WORD.findall(name.lower())
+    if not parts:
+        return False
+    words = _WORD.findall(transcript.lower())
+    if any(_word_matches(word, "".join(parts)) for word in words):
+        return True
+    # Whisper давхар нэрийг тусдаа үг болгож бичдэг: хэсэг бүр сонсогдсон байх ёстой.
+    return len(parts) > 1 and all(any(_word_matches(word, part) for word in words) for part in parts)

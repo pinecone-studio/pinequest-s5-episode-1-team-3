@@ -96,11 +96,12 @@ export default function HomeModeScreen() {
   );
 }
 
-// Сервер «хаалга», «хонх» гэж таньсан ба хэрэглэгч тэр дууг асаасан бол мэдэгдэнэ.
+// Сервер «хаалга», «хонх», «сэрүүлэг» гэж таньсан ба хэрэглэгч тэр дууг асаасан бол мэдэгдэнэ.
 function alertKindFor(result: DetectionResult, enabled: Record<SoundKey, boolean>): AlertKind | null {
   const label = result.sound?.label;
   if (label === "knock" && enabled.knock) return "knock";
   if (label === "doorbell" && enabled.bell) return "doorbell";
+  if (label === "alarm" && enabled.alarm) return "alarm";
   return null;
 }
 
