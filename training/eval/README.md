@@ -6,11 +6,13 @@ Whisper fine-tune, үнэлгээнд зориулсан **300 зарлал** (�
 |---|---|
 | `announcements.csv` | Уншиж бичүүлэх 300 мөр. `make_announcements.py`-ээр үүсгэнэ, **гараар засахгүй** |
 | `make_announcements.py` | Хүснэгт үүсгэгч (seed тогтмол) |
+| `check_announcements.py` | Мөр бүрийг серверийн парсераар уншуулж шалгана |
 | `speakers.json` | Хэн сургалтад, хэн тестэд |
 | `split_by_speaker.py` | Бичлэгийн жагсаалтыг хүнээр нь train/test болгож, алдааг шалгана |
 
 ```bash
 python training/eval/make_announcements.py                       # хүснэгтийг дахин үүсгэх
+python training/eval/check_announcements.py                      # парсер мөр бүрийг зөв уншиж байна уу
 python training/eval/split_by_speaker.py data/manifest.csv data/ # бичлэгийг хуваах
 ```
 
@@ -24,7 +26,7 @@ python training/eval/split_by_speaker.py data/manifest.csv data/ # бичлэг�
 
 - Дугаарыг 3 янзаар уншина (`style`): `words` «хорин дөрөв», `zero` «тэг хорин дөрөв», `digits` «нэг тэг тав».
 - 75% нь үсэгтэй (А, Бэ, Вэ, Гэ, Дэ, Е), 25% нь зөвхөн тоо.
-- Мөр бүрийг `server/app/text/numbers.py`, `matching.py`-аар шалгасан: 300/300 дугаар, цонх, нэр зөв ялгарсан.
+- `check_announcements.py`: 300/300 мөрөнд дугаар, цонх, нэр зөв ялгарна.
 
 > **Мэдэгдэх зүйл (5, 7-р хүн):** парсер зөвхөн «цонх»-ыг цонх гэж таньдаг. Эмнэлгийн «312 тоот өрөө», «кабинет» гэсэн 41 мөрөнд
 > дугаар зөв таарна, харин өрөөний дугаар `window: null` гарна (мэдэгдэл дээр өрөө харагдахгүй). Хүснэгтэд `place` баганаар ялгасан.
