@@ -29,7 +29,7 @@ from pathlib import Path
 SEED = 20261012
 PER_DOMAIN = 100
 TEST_PER_DOMAIN = 20
-NAME_SHARE = {"bank": 0.0, "hospital": 0.4, "gov": 0.25}
+NAME_SHARE = {"bank": 0.0, "hospital": 0.4, "gov": 0.0}
 SMALL_SHARE = 0.3
 TICKET_DIGITS = 3
 MAX_WINDOW = 12
@@ -62,7 +62,7 @@ class TicketRules:
 RULES = {
     "bank": TicketRules(BANK_LETTERS, letter_share=1.0, max_number=150, pad_digits=False),
     "hospital": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=999, pad_digits=True),
-    "gov": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=999, pad_digits=True),
+    "gov": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=200, pad_digits=True),
 }
 
 # Багийнхан гараар зассан мөр: (бичвэр, ticket, window, style). Үүсгэсэн мөрийг дарж бичнэ.
@@ -180,9 +180,6 @@ NAME_TEMPLATES: dict[str, list[QueueTemplate]] = {
     "hospital": [
         ("{n} гэдэг үйлчлүүлэгч {w} цонхонд очно уу.", "цонх"),
         ("{n} гэдэг үйлчлүүлэгч {r} өрөөнд орно уу.", "өрөө"),
-    ],
-    "gov": [
-        ("{n} гэдэг үйлчлүүлэгч {w} цонхонд очно уу.", "цонх"),
     ],
 }
 
