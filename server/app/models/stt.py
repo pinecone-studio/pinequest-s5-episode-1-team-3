@@ -9,10 +9,9 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from app.config import Settings
-from app.models.tts import SpeechError
+from app.models.tts import REQUEST_TIMEOUT_SECONDS, SpeechError
 from app.schemas import TalkAudioRequest, TalkTranscript
 
-PROVIDER_TIMEOUT_SECONDS = 8
 MAX_RESPONSE_BYTES = 100_000
 MAX_UPLOAD_BYTES = 1_020_000
 MAX_DEMO_TRANSCRIPTIONS = 30
@@ -80,7 +79,7 @@ class TranscriptionService:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=PROVIDER_TIMEOUT_SECONDS) as response:
+            with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 payload = response.read(MAX_RESPONSE_BYTES + 1)
             if len(payload) > MAX_RESPONSE_BYTES:
                 raise SpeechError("STT_BAD_RESPONSE", 502)

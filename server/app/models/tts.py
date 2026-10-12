@@ -7,7 +7,8 @@ from urllib.request import Request, urlopen
 from app.config import Settings
 from app.schemas import PhraseId
 
-REQUEST_TIMEOUT_SECONDS = 8
+# The app aborts every request at 8 s (API contract); stay below it so the app sees our error code.
+REQUEST_TIMEOUT_SECONDS = 6
 MAX_AUDIO_BYTES = 2_000_000
 PHRASES: dict[PhraseId, str] = {"greeting": "Сайн байна уу?", "thanks": "Баярлалаа"}
 

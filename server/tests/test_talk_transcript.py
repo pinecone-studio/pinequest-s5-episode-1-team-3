@@ -24,7 +24,8 @@ def test_service_sends_mongolian_audio_and_validates_transcript() -> None:
     assert b"scribe_v2" in request.data
     assert b"mon" in request.data
     assert AUDIO.audio in request.data
-    assert provider.call_args.kwargs["timeout"] == 8
+    # Must finish before the app's 8 s contract timeout, or the app shows "offline" instead of our error.
+    assert provider.call_args.kwargs["timeout"] < 8
 
 
 @pytest.mark.parametrize("payload", [b"{}", b"not-json", b'{"text": 123}'])
