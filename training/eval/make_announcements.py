@@ -30,8 +30,6 @@ SEED = 20261012
 PER_DOMAIN = 100
 TEST_PER_DOMAIN = 20
 NAME_SHARE = {"bank": 0.0, "hospital": 0.4, "gov": 0.25}
-MAX_TICKET = 999
-LETTER_SHARE = 0.75
 SMALL_SHARE = 0.3
 TICKET_DIGITS = 3
 MAX_WINDOW = 12
@@ -48,7 +46,32 @@ BACK_VOWELS = set("аоуя")
 FRONT_VOWELS = set("эөүеи")
 
 # Дарааллын тасалбарын үсгийг дууддаг хэлбэр (server/app/text/numbers.py → LETTER_NAMES).
-LETTERS = {"А": "А", "Б": "Бэ", "В": "Вэ", "Г": "Гэ", "Д": "Дэ", "Е": "Е"}
+CYRILLIC_LETTERS = {"А": "А", "Б": "Бэ", "В": "Вэ", "Г": "Гэ", "Д": "Дэ", "Е": "Е"}
+# Банкууд латин үсэгтэй тасалбар өгч, англиар дууддаг. «A-» нь дугаартайгаа нийлж бичигдэнэ.
+BANK_LETTERS = {"A": "A-", "B": "Бий", "C": "Си", "D": "Дий"}
+
+
+@dataclass(frozen=True)
+class TicketRules:
+    letters: dict[str, str]  # тасалбарын үсэг → дуудлага
+    letter_share: float
+    max_number: int
+    pad_digits: bool  # цифрээр уншихдаа тэгээр дүүргэх эсэх («тэг нэг найм» эсвэл «нэг найм»)
+
+
+RULES = {
+    "bank": TicketRules(BANK_LETTERS, letter_share=1.0, max_number=150, pad_digits=False),
+    "hospital": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=999, pad_digits=True),
+    "gov": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=999, pad_digits=True),
+}
+
+# Багийнхан гараар зассан мөр: (бичвэр, ticket, window, style). Үүсгэсэн мөрийг дарж бичнэ.
+FIXED_ROWS: dict[str, tuple[str, str, int, str]] = {
+    "bank_001": ("A-тавин найман дугаартай үйлчлүүлэгч, есдүгээр цонх руу ирнэ үү.", "A-058", 9, "words"),
+    "bank_002": ("Си хоёр дугаартай үйлчлүүлэгч, хоёрдугаар цонх руу ирнэ үү.", "C-002", 2, "words"),
+    "bank_003": ("Бий тэг ерэн есөн дугаартай үйлчлүүлэгч наймдугаар цонхонд ирнэ үү.", "B-099", 8, "zero"),
+    "bank_004": ("Дий найм ес дугаартай үйлчлүүлэгч дөрөвдүгээр цонхонд очно уу.", "D-089", 4, "digits"),
+}
 
 NAMES = [
     "Болд", "Бат-Эрдэнэ", "Сарнай", "Наран", "Тэмүүлэн", "Оюунчимэг", "Ганбаатар",
@@ -98,6 +121,8 @@ class Ticket:
     letter: str | None
     number: int
     style: str  # words | zero | digits
+    letter_word: str
+    pad_digits: bool
 
     @property
     def label(self) -> str:
@@ -106,14 +131,18 @@ class Ticket:
 
     def spoken(self, attributive: bool) -> str:
         if self.style == "digits":
-            number = " ".join(UNITS[int(d)] for d in f"{self.number:0{TICKET_DIGITS}d}")
+            digits = f"{self.number:0{TICKET_DIGITS}d}" if self.pad_digits else str(self.number)
+            number = " ".join(UNITS[int(d)] for d in digits)
         elif self.style == "zero":
             # «тэг хорин дөрөв» = 024. Тасалбар дээр бичигдсэнээр нь уншдаг газар бий.
             zeros = TICKET_DIGITS - len(str(self.number))
             number = " ".join(["тэг"] * zeros + [cardinal(self.number, attributive)])
         else:
             number = cardinal(self.number, attributive)
-        return f"{LETTERS[self.letter]} {number}" if self.letter else number
+        if not self.letter:
+            return number
+        joiner = "" if self.letter_word.endswith("-") else " "
+        return f"{self.letter_word}{joiner}{number}"
 
 
 @dataclass(frozen=True)
@@ -137,10 +166,10 @@ QUEUE_TEMPLATES: dict[str, list[QueueTemplate]] = {
     "bank": [
         ("{t} дугаартай үйлчлүүлэгч {w} цонхонд ирнэ үү.", "цонх"),
         ("{tn}, {w} цонх.", "цонх"),
-        ("{t} дугаартай харилцагч {w} цонхонд хандана уу.", "цонх"),
+        ("{t} дугаартай үйлчлүүлэгч {w} цонхонд хандана уу.", "цонх"),
         ("Дараагийн үйлчлүүлэгч {tn}, {w} цонхонд ирнэ үү.", "цонх"),
         ("{t} дугаартай үйлчлүүлэгч, {w} цонх руу ирнэ үү.", "цонх"),
-        ("{t} дугаартай харилцагч {w} цонхонд очно уу.", "цонх"),
+        ("{t} дугаартай үйлчлүүлэгч {w} цонхонд очно уу.", "цонх"),
         ("{t} дугаар, {w} цонхоор үйлчлүүлнэ үү.", "цонх"),
         ("{t} дугаартай үйлчлүүлэгч касс руу ирнэ үү.", ""),
     ],
@@ -179,13 +208,14 @@ NAME_TEMPLATES: dict[str, list[QueueTemplate]] = {
 }
 
 
-def random_ticket(rng: random.Random) -> Ticket:
-    letter = rng.choice(list(LETTERS)) if rng.random() < LETTER_SHARE else None
+def random_ticket(rng: random.Random, rules: TicketRules) -> Ticket:
+    letter = rng.choice(list(rules.letters)) if rng.random() < rules.letter_share else None
     style = rng.choices(["words", "zero", "digits"], weights=[6, 3, 1])[0]
     # «тэг»-ээр эхлэх уншлага зөвхөн 100-аас бага дугаарт утгатай.
     small = style == "zero" or rng.random() < SMALL_SHARE
-    number = rng.randint(1, 99) if small else rng.randint(1, MAX_TICKET)
-    return Ticket(letter, number, style)
+    number = rng.randint(1, 99) if small else rng.randint(1, rules.max_number)
+    letter_word = rules.letters[letter] if letter else ""
+    return Ticket(letter, number, style, letter_word, rules.pad_digits)
 
 
 def fill(template: str, rng: random.Random, ticket: Ticket | None, name: str) -> tuple[str, int | None]:
@@ -208,11 +238,15 @@ def fill(template: str, rng: random.Random, ticket: Ticket | None, name: str) ->
 def make_row(domain: str, index: int, kind: str, split: str, rng: random.Random) -> Row:
     templates = NAME_TEMPLATES[domain] if kind == "name" else QUEUE_TEMPLATES[domain]
     template, place = rng.choice(templates)
-    ticket = random_ticket(rng) if kind == "queue" else None
+    ticket = random_ticket(rng, RULES[domain]) if kind == "queue" else None
     name = rng.choice(NAMES) if kind == "name" else ""
     text, window = fill(template, rng, ticket, name)
+    row_id = f"{domain}_{index:03d}"
+    if row_id in FIXED_ROWS:
+        text, label, fixed_window, style = FIXED_ROWS[row_id]
+        return Row(row_id, domain, kind, split, text, label, str(fixed_window), "цонх", "", style)
     return Row(
-        id=f"{domain}_{index:03d}",
+        id=row_id,
         domain=domain,
         kind=kind,
         split=split,
@@ -226,9 +260,10 @@ def make_row(domain: str, index: int, kind: str, split: str, rng: random.Random)
 
 
 def make_rows(seed: int = SEED) -> list[Row]:
-    rng = random.Random(seed)
     rows: list[Row] = []
     for domain in QUEUE_TEMPLATES:
+        # Домэйн бүр тусдаа seed-тэй: банкны загвар засахад эмнэлгийн мөрүүд өөрчлөгдөхгүй.
+        rng = random.Random(f"{seed}-{domain}")
         names = round(PER_DOMAIN * NAME_SHARE[domain])
         kinds = ["name"] * names + ["queue"] * (PER_DOMAIN - names)
         rng.shuffle(kinds)
