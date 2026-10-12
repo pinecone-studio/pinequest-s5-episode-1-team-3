@@ -1,35 +1,27 @@
-import type { DetectionMatch, DetectionResult, SoundLabel, SoundResult } from "./types";
+import { z } from "zod";
+
+import type { DetectionResult } from "./types";
 
 // Серверийн хариуг шалгаж уншина. Гэрээнд таарахгүй бол null.
+const soundSchema = z.object({
+  label: z.enum(["knock", "doorbell", "alarm", "speech", "other"]),
+  score: z.number().min(0).max(1),
+});
 
-const SOUND_LABELS: readonly SoundLabel[] = ["knock", "doorbell", "alarm", "speech", "other"];
+const matchSchema = z.object({
+  type: z.enum(["queue", "name"]),
+  value: z.string(),
+  window: z.number().nullable().default(null),
+});
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-function parseSound(value: unknown): SoundResult | null | undefined {
-  if (value === null || value === undefined) return null;
-  if (!isObject(value)) return undefined;
-  const label = SOUND_LABELS.find((known) => known === value.label);
-  const score = value.score;
-  if (!label || typeof score !== "number" || score < 0 || score > 1) return undefined;
-  return { label, score };
-}
-
-function parseMatch(value: unknown): DetectionMatch | null | undefined {
-  if (value === null || value === undefined) return null;
-  if (!isObject(value)) return undefined;
-  if ((value.type !== "queue" && value.type !== "name") || typeof value.value !== "string") return undefined;
-  const window = typeof value.window === "number" ? value.window : null;
-  return { type: value.type, value: value.value, window };
-}
+export const detectionResultSchema = z.object({
+  sound: soundSchema.nullable().default(null),
+  transcript: z.string().nullable().default(null),
+  match: matchSchema.nullable().default(null),
+  latencyMs: z.number().min(0),
+});
 
 export function parseDetectionResult(value: unknown): DetectionResult | null {
-  if (!isObject(value)) return null;
-  const sound = parseSound(value.sound);
-  const match = parseMatch(value.match);
-  if (sound === undefined || match === undefined) return null;
-  const transcript = typeof value.transcript === "string" ? value.transcript : null;
-  const latencyMs = typeof value.latencyMs === "number" ? value.latencyMs : 0;
-  return { sound, transcript, match, latencyMs };
+  const parsed = detectionResultSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
