@@ -21,3 +21,9 @@ data/
 ├─ raw/fsd50k/      FSD50K eval_audio + ground_truth (zenodo.org/records/4060432)
 └─ raw/home/        Багийн гэрийн бичлэг (зөвшөөрөлтэй, speaker_01 …)
 ```
+
+## Алхамууд
+
+```bash
+.venv/bin/python prepare.py    # 5 ангилал руу хөрвүүлж, 16kHz mono болгоно → data/manifest.csv
+```
