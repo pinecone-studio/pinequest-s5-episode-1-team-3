@@ -31,7 +31,7 @@ export function TalkPhraseCard({ phrase, selected, disabled, onSpeak, onSelect, 
         <Image source={ILLUSTRATIONS[phrase]} contentFit="contain" style={styles.illustration} accessible={false} />
       </Pressable>
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${t.watchSign}: ${t.phrases[phrase]}`} onPress={onPreview} style={({ pressed }) => [styles.preview, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${t.watchSign}: ${t.phrases[phrase]}`} accessibilityState={{ disabled }} disabled={disabled} onPress={onPreview} style={({ pressed }) => [styles.preview, (pressed || disabled) && styles.pressed]}>
           <Ionicons name="play-circle" size={fontSize.screenTitle} color={colors.infoText} accessible={false} />
           <Text style={styles.previewText}>{t.watchSign}</Text>
         </Pressable>

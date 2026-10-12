@@ -6,7 +6,8 @@ import { waitForSpeechLoad } from "@/services/audio/talkPlayback";
 import { prepareSpeech, SpeechRequestError, type SpeechErrorCode } from "@/services/detector/talkSpeech";
 
 export function useTalkSpeech() {
-  const player = useAudioPlayer(null);
+  // iOS pause must not deactivate the shared session after microphone recording starts.
+  const player = useAudioPlayer(null, { keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
   const [selected, setSelected] = useState<PhraseId | null>(null);
   const [loading, setLoading] = useState(false);

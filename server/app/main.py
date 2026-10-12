@@ -13,11 +13,13 @@ from fastapi import FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 
 from app.audio import AudioError, decode, duration_seconds
 from app.config import load_settings, settings
 from app.models.sound import SoundClassifier, YamnetClassifier
 from app.models.speech import Transcriber, WhisperTranscriber
+from app.models.stt import MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
 from app.models.tts import SpeechError, SpeechService
 from app.pipeline import run_detection
 from app.schemas import (
@@ -28,6 +30,7 @@ from app.schemas import (
     ModelVersions,
     PhraseId,
     TalkSpeechRequest,
+    TalkTranscript,
 )
 from app.text.matching import parse_ticket
 
@@ -60,6 +63,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="SIGNO API", version=settings.version, lifespan=lifespan)
 talk_settings = load_settings()
 speech_service = SpeechService(talk_settings)
+transcription_service = TranscriptionService(talk_settings)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(talk_settings.cors_origins),
@@ -129,3 +133,17 @@ def talk_speech(phrase: Annotated[PhraseId, Query()]) -> Response:
     except SpeechError as exc:
         return error_response(exc.status, exc.code, "Speech audio is unavailable.")
     return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.post("/api/v1/talk/transcribe", response_model=TalkTranscript)
+async def talk_transcribe(request: Request) -> TalkTranscript | JSONResponse:
+    try:
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > MAX_UPLOAD_BYTES:
+                raise SpeechError("AUDIO_TOO_LARGE", 413)
+            body.extend(chunk)
+        audio = parse_audio(bytes(body), request.headers.get("content-type", ""))
+        return await run_in_threadpool(transcription_service.transcribe, audio)
+    except SpeechError as exc:
+        return error_response(exc.status, exc.code, "Speech transcription is unavailable.")

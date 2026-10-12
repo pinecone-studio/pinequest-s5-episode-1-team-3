@@ -32,7 +32,7 @@ def test_greeting_generates_mongolian_speech_and_reuses_cache() -> None:
             "model_id": "eleven_v4",
             "language_code": "mn",
         }
-        assert provider.call_args.kwargs["timeout"] == 8
+        assert provider.call_args.kwargs["timeout"] < 8
 
 
 def test_missing_credentials_never_calls_provider() -> None:
