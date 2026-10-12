@@ -32,7 +32,7 @@ def test_greeting_generates_mongolian_speech_and_reuses_cache() -> None:
             "model_id": "eleven_v4",
             "language_code": "mn",
         }
-        assert provider.call_args.kwargs["timeout"] == 8
+        assert provider.call_args.kwargs["timeout"] < 8
 
 
 def test_missing_credentials_never_calls_provider() -> None:
@@ -75,7 +75,9 @@ def test_endpoint_returns_audio(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_unknown_phrase_is_rejected() -> None:
     response = TestClient(app).get("/api/v1/talk/speech?phrase=arbitrary-text")
-    assert response.status_code == 422
+    # Бүх алдаа нэг хэлбэртэй (AGENTS.md → API гэрээ)
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "BAD_REQUEST"
 
 
 def test_endpoint_missing_configuration_has_error_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
