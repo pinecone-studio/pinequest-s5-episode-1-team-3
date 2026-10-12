@@ -61,7 +61,7 @@ class TicketRules:
 
 RULES = {
     "bank": TicketRules(BANK_LETTERS, letter_share=1.0, max_number=150, pad_digits=False),
-    "hospital": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=999, pad_digits=True),
+    "hospital": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=300, pad_digits=True),
     "gov": TicketRules(CYRILLIC_LETTERS, letter_share=0.75, max_number=200, pad_digits=True),
 }
 
