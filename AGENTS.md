@@ -193,7 +193,8 @@ POST /api/v1/detect   multipart/form-data
 
 **TypeScript (`mobile/`)**
 - `strict: true`. `any` хориотой. Мэдэхгүй төрөл бол `unknown` + zod ашигла.
-- Файл ≤ 200 мөр, функц ≤ 40 мөр.
+- Компонент, дэлгэц (`.tsx`) ≤ **150 мөр**. Давбал хэсгийг нь `components/`-д тусдаа компонент болгож хуваа. `bun run lint` шалгана.
+- Бусад файл ≤ 200 мөр, функц ≤ 40 мөр.
 - Нэрлэх: компонент `PascalCase.tsx`, hook `useXxx`, бусад `camelCase`, тогтмол `UPPER_SNAKE_CASE`.
 - Early return ашигла. `if`-ийг 3-аас олон түвшнээр давхарлахгүй.
 - Тайлбарт «юу»-г биш, **«яагаад»**-ыг бич.
