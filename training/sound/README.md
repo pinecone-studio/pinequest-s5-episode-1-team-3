@@ -42,3 +42,13 @@ SOUND_HEAD_MODEL=../training/sound/data/sound_head.json
 ```
 
 Хоосон бол сервер одоогийн `LABEL_MAP` (baseline)-аар ажиллана. `/api/v1/health` → `models.sound` нь `yamnet+head` эсвэл `yamnet`.
+
+## HF Hub руу оруулах (Git-д биш)
+
+```bash
+.venv/bin/hf auth login     # нэг удаа, өөрийн «Write» токеноор
+.venv/bin/hf upload <hf-нэр>/signo-sound-head data/sound_head.json sound_head.json --private
+.venv/bin/hf upload <hf-нэр>/signo-sound-head data/sound_head.joblib sound_head.joblib --private
+```
+
+Repo байхгүй бол `--private`-аар үүснэ. Тоог [training/RESULTS.md](../RESULTS.md)-д нэмнэ.
