@@ -10,17 +10,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
+import numpy as np
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app.audio import AudioError, decode, duration_seconds
+from app.audio import SAMPLE_RATE, AudioError, decode, duration_seconds
 from app.config import load_settings, settings
 from app.models.sound import SoundClassifier, YamnetClassifier
 from app.models.speech import Transcriber, WhisperTranscriber
-from app.models.stt import MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
+from app.models.stt import MAX_UPLOAD_BYTES, ElevenLabsTranscriber, TranscriptionService, parse_audio
 from app.models.tts import SpeechError, SpeechService
 from app.pipeline import run_detection
 from app.schemas import (
@@ -46,6 +47,7 @@ TEST_PAGE = Path(__file__).parent / "static" / "test.html"
 class Models:
     classifier: SoundClassifier | None = None
     transcriber: Transcriber | None = None
+    name_transcriber: Transcriber | None = None  # ElevenLabs. None бол «нэр» горим Whisper-ээр
 
 
 models = Models()
@@ -58,6 +60,17 @@ def _detect_locked(*args: Any, **kwargs: Any) -> DetectionResult:
         return run_detection(*args, **kwargs)
 
 
+def _detect_name_remote(samples: np.ndarray, name: str | None) -> DetectionResult:
+    assert models.classifier is not None and models.name_transcriber is not None
+    with _models_lock:
+        sound = models.classifier.classify(samples)
+    # ElevenLabs төлбөртэй, хязгаартай (MAX_DEMO_TRANSCRIPTIONS): яриагүй, чимээгүй хэсгийг илгээхгүй.
+    if sound is None or sound.label == "other":
+        return DetectionResult()
+    # Сүлжээний дуудлага (6 сек хүртэл): загварын lock-ийг барьвал бусад утас бүгд зогсоно.
+    return run_detection(samples, "name", models.classifier, models.name_transcriber, name=name)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if settings.load_models:
@@ -68,6 +81,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         models.transcriber = WhisperTranscriber(
             settings.whisper_model, settings.whisper_compute_type, settings.whisper_language
         )
+        if transcription_service.configured():
+            models.name_transcriber = ElevenLabsTranscriber(transcription_service, SAMPLE_RATE)
+        logger.info("«Нэр» горим: %s", "ElevenLabs" if models.name_transcriber else "Whisper")
     yield
 
 
@@ -128,9 +144,15 @@ async def detect(
     if duration_seconds(samples) > settings.max_audio_seconds:
         return error_response(400, "AUDIO_TOO_LONG", "Аудио хэт урт байна")
 
-    result = await run_in_threadpool(
-        _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
-    )
+    try:
+        if mode == "name" and models.name_transcriber is not None:
+            result = await run_in_threadpool(_detect_name_remote, samples, name)
+        else:
+            result = await run_in_threadpool(
+                _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
+            )
+    except SpeechError as exc:
+        return error_response(exc.status, exc.code, "Нэр таних үйлчилгээ ажиллахгүй байна")
     result.latency_ms = round((time.perf_counter() - started) * 1000)
     return JSONResponse(content=result.model_dump(by_alias=True))
 

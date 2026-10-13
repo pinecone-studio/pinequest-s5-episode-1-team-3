@@ -1,3 +1,5 @@
+import io
+import wave
 from email import policy
 from email.parser import BytesParser
 from threading import Lock
@@ -6,6 +8,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
+import numpy as np
 from pydantic import ValidationError
 
 from app.config import Settings
@@ -63,9 +66,13 @@ class TranscriptionService:
                 raise SpeechError("STT_DEMO_LIMIT", 429)
             self._request_count += 1
 
+    def configured(self) -> bool:
+        settings = self.settings
+        return bool(settings.elevenlabs_api_key) and urlparse(settings.elevenlabs_url).scheme == "https"
+
     def transcribe(self, audio: TalkAudioRequest) -> TalkTranscript:
         settings = self.settings
-        if not settings.elevenlabs_api_key or urlparse(settings.elevenlabs_url).scheme != "https":
+        if not self.configured():
             raise SpeechError("STT_NOT_CONFIGURED", 503)
         self._claim_request()
         boundary = uuid4().hex
@@ -91,3 +98,26 @@ class TranscriptionService:
             raise SpeechError("STT_UNAVAILABLE", 502) from None
         except ValidationError:
             raise SpeechError("STT_BAD_RESPONSE", 502) from None
+
+
+def wav_bytes(samples: np.ndarray, rate: int) -> bytes:
+    pcm = (np.clip(samples, -1.0, 1.0) * np.iinfo(np.int16).max).astype(np.int16)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(pcm.tobytes())
+    return buffer.getvalue()
+
+
+class ElevenLabsTranscriber:
+    """«Нэр» горим: ерийн Whisper монгол нэрийг бараг сонсдоггүй тул ElevenLabs Scribe (монгол)."""
+
+    def __init__(self, service: TranscriptionService, rate: int) -> None:
+        self._service = service
+        self._rate = rate
+
+    def transcribe(self, samples: np.ndarray) -> str:
+        audio = TalkAudioRequest(audio=wav_bytes(samples, self._rate), content_type="audio/wav")
+        return self._service.transcribe(audio).text
