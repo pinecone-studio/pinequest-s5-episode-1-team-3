@@ -1,0 +1,5 @@
+{
+  "_comment": "Хүнээр нь хуваах (AGENTS.md → Өгөгдөл). Жинхэнэ нэр ↔ speaker_XX холбоосыг зөвхөн багийн Drive-д хадгална, Git-д биш.",
+  "train": ["speaker_01", "speaker_02", "speaker_03", "speaker_04", "speaker_05"],
+  "test": ["speaker_06", "speaker_07"]
+}
