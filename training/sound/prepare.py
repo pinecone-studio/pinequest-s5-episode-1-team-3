@@ -11,6 +11,7 @@ import csv
 import logging
 import sys
 import wave
+import zlib
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,12 +25,26 @@ from app.audio import SAMPLE_RATE, AudioError, decode  # noqa: E402
 
 DATA = Path(__file__).resolve().parent / "data"
 ESC50 = DATA / "raw" / "esc50" / "ESC-50-master"
+FSD50K = DATA / "raw" / "fsd50k"
 OUT = DATA / "16k"
 MANIFEST = DATA / "manifest.csv"
 
 # ESC-50-д хонх, яриа байхгүй (FSD50K-ээс авна). Бусад 48 ангилал (сирен, сүмийн хонх …) → other.
 ESC50_LABELS = {"door_wood_knock": "knock", "clock_alarm": "alarm"}
 ESC50_TEST_FOLD = "5"
+FSD50K_TEST_PERCENT = 20
+# FSD50K-ийн шошго эх ангилал руу дамждаг: «Alarm» дотор утас, сирен, машины дохио, хаалганы хонх ч бий.
+NOT_HOME_ALARM = frozenset(
+    {
+        "Doorbell",
+        "Siren",
+        "Telephone",
+        "Ringtone",
+        "Vehicle_horn_and_car_horn_and_honking",
+        "Bicycle_bell",
+        "Vehicle",
+    }
+)
 PCM_MAX = 32_767
 
 logger = logging.getLogger("prepare")
@@ -40,7 +55,7 @@ class Clip:
     source: Path
     name: str  # data/16k/ доторх зам
     label: str
-    group: str  # эх бичлэг: train/test-ийг үүгээр хуваана
+    group: str  # Freesound ID: train/test-ийг үүгээр хуваана (хоёр санд ижил)
     split: str
 
 
@@ -55,11 +70,50 @@ def esc50_clips() -> list[Clip]:
             source=ESC50 / "audio" / row["filename"],
             name=f"esc50/{row['filename']}",
             label=ESC50_LABELS.get(row["category"], "other"),
-            group=f"esc50-{row['src_file']}",
+            group=f"fs-{row['src_file']}",
             split="test" if row["src_file"] in test_sources else "train",
         )
         for row in rows
     ]
+
+
+def fsd50k_label(labels: set[str]) -> str:
+    """Мэдэгдэх дуу ярианаас түрүүлнэ (серверийн pick_label-тай ижил дараалал)."""
+    if "Doorbell" in labels:
+        return "doorbell"
+    if "Knock" in labels:
+        return "knock"
+    if "Alarm" in labels and not labels & NOT_HOME_ALARM:
+        return "alarm"
+    return "speech" if "Speech" in labels else "other"
+
+
+def hashed_split(group: str) -> str:
+    # Санамсаргүй мэт боловч ажиллуулах бүрт ижил.
+    return "test" if zlib.crc32(group.encode()) % 100 < FSD50K_TEST_PERCENT else "train"
+
+
+def fsd50k_clips(known: dict[str, str]) -> list[Clip]:
+    """known: ESC-50-ийн бичлэгийн split. 152 Freesound бичлэг хоёр санд хоёуланд байдаг."""
+    audio = FSD50K / "FSD50K.eval_audio"
+    if not audio.exists():
+        logger.warning("FSD50K алга (%s), зөвхөн ESC-50", audio.relative_to(DATA))
+        return []
+    with (FSD50K / "FSD50K.ground_truth" / "eval.csv").open(newline="") as meta:
+        rows = list(csv.DictReader(meta))
+    clips = []
+    for row in rows:
+        group = f"fs-{row['fname']}"
+        clips.append(
+            Clip(
+                source=audio / f"{row['fname']}.wav",
+                name=f"fsd50k/{row['fname']}.wav",
+                label=fsd50k_label(set(row["labels"].split(","))),
+                group=group,
+                split=known.get(group) or hashed_split(group),
+            )
+        )
+    return clips
 
 
 def write_wav(path: Path, samples: np.ndarray) -> None:
@@ -106,7 +160,8 @@ def write_manifest(clips: list[Clip]) -> None:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    clips = convert(esc50_clips())
+    esc50 = esc50_clips()
+    clips = convert(esc50 + fsd50k_clips({clip.group: clip.split for clip in esc50}))
     check_split(clips)
     write_manifest(clips)
     counts = Counter((clip.label, clip.split) for clip in clips)
