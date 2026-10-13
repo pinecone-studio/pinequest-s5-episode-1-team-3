@@ -109,8 +109,10 @@ def main() -> None:
     joblib.dump(head, HEAD)
     export_json(head, thresholds)
     # Сервер sklearn-гүй numpy-гаар тооцдог: JSON-оос ачаалсан хариу sklearn-тэй яг таарах ёстой.
-    served = SoundHead(str(HEAD_JSON)).probabilities(data["X"])
-    assert np.allclose(served, head.predict_proba(data["X"]), atol=1e-6), "JSON толгой sklearn-ээс зөрлөө"
+    # float64: sklearn float32 оролтыг float32-оор тооцож ~4e-6 зөрдөг, сервер float64 ашигладаг.
+    x64 = data["X"].astype(np.float64)
+    served = SoundHead(str(HEAD_JSON)).probabilities(x64)
+    assert np.allclose(served, head.predict_proba(x64), atol=1e-9), "JSON толгой sklearn-ээс зөрлөө"
     logger.info("→ %s, %s (сервертэй тооцоо таарч байна)", HEAD.name, HEAD_JSON.name)
 
 
