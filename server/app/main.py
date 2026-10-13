@@ -62,7 +62,9 @@ def _detect_locked(*args: Any, **kwargs: Any) -> DetectionResult:
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if settings.load_models:
         logger.info("Загвар ачаалж байна: YAMNet, Whisper %s", settings.whisper_model)
-        models.classifier = YamnetClassifier(settings.sound_model_path, settings.sound_min_score)
+        models.classifier = YamnetClassifier(
+            settings.sound_model_path, settings.sound_min_score, settings.sound_head_model
+        )
         models.transcriber = WhisperTranscriber(
             settings.whisper_model, settings.whisper_compute_type, settings.whisper_language
         )
@@ -94,7 +96,8 @@ async def validation_error(_request: Request, exc: RequestValidationError) -> JS
 @app.get("/api/v1/health", response_model=HealthResponse, response_model_by_alias=True)
 def health() -> HealthResponse:
     loaded = models.classifier is not None and models.transcriber is not None
-    versions = ModelVersions(sound="yamnet", whisper=settings.whisper_model) if loaded else ModelVersions()
+    sound = "yamnet+head" if settings.sound_head_model else "yamnet"
+    versions = ModelVersions(sound=sound, whisper=settings.whisper_model) if loaded else ModelVersions()
     return HealthResponse(version=settings.version, models=versions)
 
 
