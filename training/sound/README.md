@@ -28,5 +28,27 @@ data/
 .venv/bin/python prepare.py    # 5 ангилал руу хөрвүүлж, 16kHz mono болгоно → data/manifest.csv
 sh ../../server/scripts/download_models.sh   # сервертэй ижил yamnet.tflite
 .venv/bin/python features.py   # YAMNet 521 онооны дундаж + max → data/features.npz
+.venv/bin/python train.py       # MLP сургаж, босгыг train CV-ээр сонгоно → data/sound_head.json, .joblib
+.venv/bin/python evaluate.py    # baseline ба толгойг серверийн кодоор test дээр харьцуулна
 ```
 
+## Серверт асаах
+
+`train.py` нь `data/sound_head.json`-д жин, босгыг хамт хадгална. Сервер үүнийг numpy-гаар ажиллуулна (sklearn хэрэггүй):
+
+```bash
+# server/.env
+SOUND_HEAD_MODEL=../training/sound/data/sound_head.json
+```
+
+Хоосон бол сервер одоогийн `LABEL_MAP` (baseline)-аар ажиллана. `/api/v1/health` → `models.sound` нь `yamnet+head` эсвэл `yamnet`.
+
+## HF Hub руу оруулах (Git-д биш)
+
+```bash
+.venv/bin/hf auth login     # нэг удаа, өөрийн «Write» токеноор
+.venv/bin/hf upload <hf-нэр>/signo-sound-head data/sound_head.json sound_head.json --private
+.venv/bin/hf upload <hf-нэр>/signo-sound-head data/sound_head.joblib sound_head.joblib --private
+```
+
+Repo байхгүй бол `--private`-аар үүснэ. Тоог [training/RESULTS.md](../RESULTS.md)-д нэмнэ.
