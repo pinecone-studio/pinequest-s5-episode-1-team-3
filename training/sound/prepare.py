@@ -8,6 +8,7 @@
 """
 
 import csv
+import json
 import logging
 import sys
 import wave
@@ -93,24 +94,26 @@ def hashed_split(group: str) -> str:
     return "test" if zlib.crc32(group.encode()) % 100 < FSD50K_TEST_PERCENT else "train"
 
 
-def fsd50k_clips(known: dict[str, str]) -> list[Clip]:
-    """known: ESC-50-ийн бичлэгийн split. 152 Freesound бичлэг хоёр санд хоёуланд байдаг."""
+def fsd50k_clips(skip: set[str]) -> list[Clip]:
+    """skip: ESC-50-д аль хэдийн байгаа Freesound бичлэг (152). Ижил дууг хоёр удаа оруулахгүй."""
     audio = FSD50K / "FSD50K.eval_audio"
     if not audio.exists():
         logger.warning("FSD50K алга (%s), зөвхөн ESC-50", audio.relative_to(DATA))
         return []
     with (FSD50K / "FSD50K.ground_truth" / "eval.csv").open(newline="") as meta:
-        rows = list(csv.DictReader(meta))
+        rows = [row for row in csv.DictReader(meta) if f"fs-{row['fname']}" not in skip]
+    info = json.loads((FSD50K / "FSD50K.metadata" / "eval_clips_info_FSD50K.json").read_text())
     clips = []
     for row in rows:
-        group = f"fs-{row['fname']}"
+        # Нэг хүн ижил хонхоо олон удаа бичиж оруулдаг: хүнээр нь бүлэглэнэ.
+        group = f"up-{info[row['fname']]['uploader']}"
         clips.append(
             Clip(
                 source=audio / f"{row['fname']}.wav",
                 name=f"fsd50k/{row['fname']}.wav",
                 label=fsd50k_label(set(row["labels"].split(","))),
                 group=group,
-                split=known.get(group) or hashed_split(group),
+                split=hashed_split(group),
             )
         )
     return clips
@@ -161,7 +164,7 @@ def write_manifest(clips: list[Clip]) -> None:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     esc50 = esc50_clips()
-    clips = convert(esc50 + fsd50k_clips({clip.group: clip.split for clip in esc50}))
+    clips = convert(esc50 + fsd50k_clips({clip.group for clip in esc50}))
     check_split(clips)
     write_manifest(clips)
     counts = Counter((clip.label, clip.split) for clip in clips)

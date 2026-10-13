@@ -18,7 +18,7 @@ python3 -m venv .venv
 ```
 data/
 ├─ raw/esc50/       ESC-50 zip-ийг задалсан (github.com/karolpiczak/ESC-50)
-├─ raw/fsd50k/      FSD50K eval_audio + ground_truth (zenodo.org/records/4060432)
+├─ raw/fsd50k/      FSD50K eval_audio + ground_truth + metadata (zenodo.org/records/4060432)
 └─ raw/home/        Багийн гэрийн бичлэг (зөвшөөрөлтэй, speaker_01 …)
 ```
 
