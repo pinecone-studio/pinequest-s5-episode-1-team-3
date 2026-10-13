@@ -29,4 +29,5 @@ data/
 sh ../../server/scripts/download_models.sh   # сервертэй ижил yamnet.tflite
 .venv/bin/python features.py   # YAMNet 521 онооны дундаж + max → data/features.npz
 .venv/bin/python train.py       # MLP сургаж test дээр хэмжинэ → data/sound_head.joblib, .json
+.venv/bin/python evaluate.py    # baseline ба толгойг харьцуулж, босго сонгоно → data/sound_thresholds.json
 ```
