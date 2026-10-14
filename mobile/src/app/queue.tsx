@@ -8,6 +8,7 @@ import { PillButton } from "@/components/PillButton";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { colors, fontSize, radius, sizes, spacing } from "@/components/theme";
+import { useMatchListener } from "@/hooks/useMatchListener";
 import { useLayout } from "@/hooks/useLayout";
 import { scaleFont } from "@/lib/responsive";
 import { normalizeTicket } from "@/lib/ticket";
@@ -20,16 +21,17 @@ export default function QueueScreen() {
   const router = useRouter();
   const { scale, isWide } = useLayout();
   const [input, setInput] = useState("");
-  const [ticket, setTicket] = useState<string | null>(null);
+  const listener = useMatchListener("queue", normalizeTicket(input) ?? "");
+  const ticket = listener.listening ? input : null;
   const [error, setError] = useState(false);
   const toggleListening = () => {
-    if (ticket) { setTicket(null); return; }
+    if (listener.listening) { listener.stop(); return; }
     const normalized = normalizeTicket(input);
     setError(!normalized);
     if (!normalized) return;
     Keyboard.dismiss();
     setInput(normalized);
-    setTicket(normalized);
+    listener.start();
   };
 
   return (
@@ -37,14 +39,15 @@ export default function QueueScreen() {
       <ScreenHeader title={t.title} backLabel={t.back} onBack={() => router.canGoBack() ? router.back() : router.replace("/")} />
       <View style={[styles.body, isWide && styles.wide]}>
         <View style={[styles.center, isWide && styles.half]}>
-          <ListenButton listening={ticket !== null} idleLabel={t.listen} activeLabel={t.listening} onPress={toggleListening} />
+          <ListenButton listening={listener.listening} idleLabel={t.listen} activeLabel={t.listening} onPress={toggleListening} />
           {ticket && <Text style={styles.bodyText}>{t.tapToStop}</Text>}
         </View>
         <View style={[styles.details, isWide && styles.half]}>
           {ticket ? <WaitingDetails ticket={ticket} /> : <TicketInput value={input} error={error} scale={scale} onChange={(value) => { setInput(value); setError(false); }} onSubmit={toggleListening} />}
         </View>
       </View>
-      {ticket && <PillButton label={t.testAlert} icon="notifications-outline" onPress={() => router.push({ pathname: "/alert", params: { kind: "queue", ticket } })} />}
+      {listener.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.bodyText}>{t.errors[listener.error]}</Text>}
+      {ticket && <PillButton label={t.testAlert} icon="notifications-outline" onPress={() => { listener.stop(); router.push({ pathname: "/alert", params: { kind: "queue", ticket } }); }} />}
       <QueueNotice />
     </ScreenContainer>
   );
@@ -103,7 +106,6 @@ function QueueNotice() {
         <Ionicons name="phone-portrait-outline" accessible={false} size={fontSize.screenTitle} color={colors.primary} />
         <Text style={[styles.statusText, styles.half]}>{t.keepOpen}</Text>
       </View>
-      <Text style={styles.bodyText}>{t.preview}</Text>
     </View>
   );
 }
