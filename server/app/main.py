@@ -10,17 +10,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
+import numpy as np
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from app.audio import AudioError, decode, duration_seconds
+from app.audio import SAMPLE_RATE, AudioError, decode, duration_seconds
 from app.config import load_settings, settings
 from app.models.sound import SoundClassifier, YamnetClassifier
 from app.models.speech import Transcriber, WhisperTranscriber
-from app.models.stt import MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
+from app.models.stt import MAX_UPLOAD_BYTES, ElevenLabsTranscriber, TranscriptionService, parse_audio
 from app.models.tts import SpeechError, SpeechService
 from app.pipeline import run_detection
 from app.schemas import (
@@ -46,6 +47,11 @@ TEST_PAGE = Path(__file__).parent / "static" / "test.html"
 class Models:
     classifier: SoundClassifier | None = None
     transcriber: Transcriber | None = None
+    remote_transcriber: Transcriber | None = None  # ElevenLabs. None бол «нэр», «ярих» Whisper-ээр
+
+
+# Монгол нэр, чөлөөт ярианд ерийн Whisper бараг ажилладаггүй. Дугаарыг парсер шалгадаг тул Whisper хэвээр.
+REMOTE_MODES = ("name", "talk")
 
 
 models = Models()
@@ -58,6 +64,23 @@ def _detect_locked(*args: Any, **kwargs: Any) -> DetectionResult:
         return run_detection(*args, **kwargs)
 
 
+def _detect_remote(samples: np.ndarray, mode: DetectMode, name: str | None) -> DetectionResult:
+    assert models.classifier is not None and models.transcriber is not None and models.remote_transcriber
+    with _models_lock:
+        sound = models.classifier.classify(samples)
+    # Төлбөртэй, цагийн хязгаартай: яриагүй, чимээгүй хэсгийг илгээхгүй (Whisper ч чимээгүйд зохиодог).
+    if sound is None or sound.label == "other":
+        return DetectionResult()
+    try:
+        # Сүлжээний дуудлага (6 сек хүртэл): загварын lock-ийг барьвал бусад утас бүгд зогсоно.
+        return run_detection(samples, mode, models.classifier, models.remote_transcriber, name=name)
+    except SpeechError as exc:
+        # Хязгаар, сүлжээ, ElevenLabs-ийн алдаа апп-ыг зогсоохгүй: орон нутгийн Whisper-ээр үргэлжилнэ.
+        logger.warning("ElevenLabs %s (%s) → Whisper", exc.code, mode)
+        with _models_lock:
+            return run_detection(samples, mode, models.classifier, models.transcriber, name=name)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if settings.load_models:
@@ -68,6 +91,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         models.transcriber = WhisperTranscriber(
             settings.whisper_model, settings.whisper_compute_type, settings.whisper_language
         )
+        if transcription_service.configured():
+            models.remote_transcriber = ElevenLabsTranscriber(transcription_service, SAMPLE_RATE)
+        backend = "ElevenLabs → Whisper" if models.remote_transcriber else "Whisper"
+        logger.info("«нэр», «ярих»: %s, цагт %d дуудлага", backend, talk_settings.elevenlabs_stt_per_hour)
     yield
 
 
@@ -128,9 +155,12 @@ async def detect(
     if duration_seconds(samples) > settings.max_audio_seconds:
         return error_response(400, "AUDIO_TOO_LONG", "Аудио хэт урт байна")
 
-    result = await run_in_threadpool(
-        _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
-    )
+    if mode in REMOTE_MODES and models.remote_transcriber is not None:
+        result = await run_in_threadpool(_detect_remote, samples, mode, name)
+    else:
+        result = await run_in_threadpool(
+            _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
+        )
     result.latency_ms = round((time.perf_counter() - started) * 1000)
     return JSONResponse(content=result.model_dump(by_alias=True))
 

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import app
-from app.models.stt import MAX_DEMO_TRANSCRIPTIONS, MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
+from app.models.stt import BUDGET_WINDOW_SECONDS, MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
 from app.models.tts import SpeechError
 from app.schemas import TalkAudioRequest, TalkTranscript
 
@@ -49,13 +49,25 @@ def test_missing_key_never_calls_provider() -> None:
     provider.assert_not_called()
 
 
-def test_demo_budget_prevents_unbounded_paid_requests() -> None:
-    service = TranscriptionService(SETTINGS)
-    service._request_count = MAX_DEMO_TRANSCRIPTIONS
-    with patch("app.models.stt.urlopen") as provider, pytest.raises(SpeechError) as error:
+def test_hourly_budget_prevents_unbounded_paid_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = [1000.0]
+    monkeypatch.setattr("app.models.stt.time.monotonic", lambda: now[0])
+    service = TranscriptionService(
+        Settings("test-secret", "", "https://provider.invalid", "eleven_v4", (), elevenlabs_stt_per_hour=2)
+    )
+
+    def reply(*_args: object, **_kwargs: object) -> BytesIO:
+        return BytesIO(b'{"text": "ok"}')
+
+    with patch("app.models.stt.urlopen", side_effect=reply) as provider:
         service.transcribe(AUDIO)
-    assert error.value.status == 429
-    provider.assert_not_called()
+        service.transcribe(AUDIO)
+        with pytest.raises(SpeechError) as error:
+            service.transcribe(AUDIO)
+        assert error.value.status == 429
+        assert provider.call_count == 2
+        now[0] += BUDGET_WINDOW_SECONDS  # цаг өнгөрөхөд дахин нээгдэнэ
+        assert service.transcribe(AUDIO).text == "ok"
 
 
 def test_endpoint_receives_one_audio_file(monkeypatch: pytest.MonkeyPatch) -> None:

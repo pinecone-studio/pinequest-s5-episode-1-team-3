@@ -1,6 +1,5 @@
 """Орчны хувьсагч унших ЦОРЫН ГАНЦ газар (AGENTS.md → Deploy ба APK)."""
 
-import os
 from dataclasses import dataclass, field
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,18 +15,33 @@ class Settings:
     elevenlabs_model: str
     cors_origins: tuple[str, ...]
     elevenlabs_stt_model: str = "scribe_v2"
+    # Төлбөртэй: «нэр»/«ярих» 3 сек тутам илгээдэг. Хэтэрвэл /detect Whisper руу шилжинэ.
+    elevenlabs_stt_per_hour: int = 300
+
+
+class _TalkEnv(BaseSettings):
+    # DetectSettings шиг server/.env-ийг уншина: өмнө нь локалд ElevenLabs-ийн түлхүүр уншигддаггүй байсан.
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    elevenlabs_api_key: str = ""
+    elevenlabs_voice_id: str = ""
+    elevenlabs_api_url: str = ""
+    elevenlabs_model: str = "eleven_v4"
+    elevenlabs_stt_model: str = "scribe_v2"
+    elevenlabs_stt_per_hour: int = 300
+    cors_origins: str = ""
 
 
 def load_settings() -> Settings:
+    env = _TalkEnv()
     return Settings(
-        elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY", ""),
-        elevenlabs_voice_id=os.getenv("ELEVENLABS_VOICE_ID", ""),
-        elevenlabs_url=os.getenv("ELEVENLABS_API_URL", ""),
-        elevenlabs_model=os.getenv("ELEVENLABS_MODEL", "eleven_v4"),
-        elevenlabs_stt_model=os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2"),
-        cors_origins=tuple(
-            origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()
-        ),
+        elevenlabs_api_key=env.elevenlabs_api_key,
+        elevenlabs_voice_id=env.elevenlabs_voice_id,
+        elevenlabs_url=env.elevenlabs_api_url,
+        elevenlabs_model=env.elevenlabs_model,
+        elevenlabs_stt_model=env.elevenlabs_stt_model,
+        elevenlabs_stt_per_hour=env.elevenlabs_stt_per_hour,
+        cors_origins=tuple(origin.strip() for origin in env.cors_origins.split(",") if origin.strip()),
     )
 
 

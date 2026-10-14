@@ -1,3 +1,7 @@
+import io
+import time
+import wave
+from collections import deque
 from email import policy
 from email.parser import BytesParser
 from threading import Lock
@@ -6,6 +10,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
+import numpy as np
 from pydantic import ValidationError
 
 from app.config import Settings
@@ -14,7 +19,7 @@ from app.schemas import TalkAudioRequest, TalkTranscript
 
 MAX_RESPONSE_BYTES = 100_000
 MAX_UPLOAD_BYTES = 1_020_000
-MAX_DEMO_TRANSCRIPTIONS = 30
+BUDGET_WINDOW_SECONDS = 3600
 
 
 def parse_audio(body: bytes, content_type: str) -> TalkAudioRequest:
@@ -53,19 +58,26 @@ def provider_body(audio: TalkAudioRequest, model: str, boundary: str) -> bytes:
 class TranscriptionService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self._request_count = 0
+        self._calls: deque[float] = deque()
         self._lock = Lock()
 
     def _claim_request(self) -> None:
-        # The public demo tunnel must not allow unlimited paid generation.
+        # Нийтийн demo хаягаар төлбөртэй дуудлага хязгааргүй явахгүй: сүүлийн нэг цагт N-ээс ихгүй.
         with self._lock:
-            if self._request_count >= MAX_DEMO_TRANSCRIPTIONS:
+            now = time.monotonic()
+            while self._calls and now - self._calls[0] >= BUDGET_WINDOW_SECONDS:
+                self._calls.popleft()
+            if len(self._calls) >= self.settings.elevenlabs_stt_per_hour:
                 raise SpeechError("STT_DEMO_LIMIT", 429)
-            self._request_count += 1
+            self._calls.append(now)
+
+    def configured(self) -> bool:
+        settings = self.settings
+        return bool(settings.elevenlabs_api_key) and urlparse(settings.elevenlabs_url).scheme == "https"
 
     def transcribe(self, audio: TalkAudioRequest) -> TalkTranscript:
         settings = self.settings
-        if not settings.elevenlabs_api_key or urlparse(settings.elevenlabs_url).scheme != "https":
+        if not self.configured():
             raise SpeechError("STT_NOT_CONFIGURED", 503)
         self._claim_request()
         boundary = uuid4().hex
@@ -91,3 +103,26 @@ class TranscriptionService:
             raise SpeechError("STT_UNAVAILABLE", 502) from None
         except ValidationError:
             raise SpeechError("STT_BAD_RESPONSE", 502) from None
+
+
+def wav_bytes(samples: np.ndarray, rate: int) -> bytes:
+    pcm = (np.clip(samples, -1.0, 1.0) * np.iinfo(np.int16).max).astype(np.int16)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(pcm.tobytes())
+    return buffer.getvalue()
+
+
+class ElevenLabsTranscriber:
+    """«Нэр», «ярих» горим: ерийн Whisper монгол яриаг бараг сонсдоггүй тул ElevenLabs Scribe (монгол)."""
+
+    def __init__(self, service: TranscriptionService, rate: int) -> None:
+        self._service = service
+        self._rate = rate
+
+    def transcribe(self, samples: np.ndarray) -> str:
+        audio = TalkAudioRequest(audio=wav_bytes(samples, self._rate), content_type="audio/wav")
+        return self._service.transcribe(audio).text
