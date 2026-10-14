@@ -23,7 +23,8 @@ def run_detection(
     name: str | None = None,
 ) -> DetectionResult:
     if mode == "home":
-        return DetectionResult(sound=classifier.classify(samples))
+        sound, heard = classifier.listen(samples)
+        return DetectionResult(sound=sound, heard=heard)
 
     transcript = transcriber.transcribe(samples)
     match: DetectionMatch | None = None

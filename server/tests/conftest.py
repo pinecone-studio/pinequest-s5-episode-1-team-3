@@ -8,15 +8,19 @@ import pytest
 # Тестэд жинхэнэ AI загвар ачаалахгүй (хурдан, интернэтгүй ажиллана)
 os.environ["LOAD_MODELS"] = "false"
 
-from app.schemas import SoundResult  # noqa: E402
+from app.schemas import HeardSound, SoundResult  # noqa: E402
 
 
 class FakeClassifier:
-    def __init__(self, result: SoundResult | None = None) -> None:
+    def __init__(self, result: SoundResult | None = None, heard: HeardSound | None = None) -> None:
         self.result = result
+        self.heard = heard
 
     def classify(self, samples: np.ndarray) -> SoundResult | None:
         return self.result
+
+    def listen(self, samples: np.ndarray) -> tuple[SoundResult | None, HeardSound | None]:
+        return self.result, self.heard
 
 
 class FakeTranscriber:
