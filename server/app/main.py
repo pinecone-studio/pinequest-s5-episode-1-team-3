@@ -47,7 +47,11 @@ TEST_PAGE = Path(__file__).parent / "static" / "test.html"
 class Models:
     classifier: SoundClassifier | None = None
     transcriber: Transcriber | None = None
-    name_transcriber: Transcriber | None = None  # ElevenLabs. None бол «нэр» горим Whisper-ээр
+    remote_transcriber: Transcriber | None = None  # ElevenLabs. None бол «нэр», «ярих» Whisper-ээр
+
+
+# Монгол нэр, чөлөөт ярианд ерийн Whisper бараг ажилладаггүй. Дугаарыг парсер шалгадаг тул Whisper хэвээр.
+REMOTE_MODES = ("name", "talk")
 
 
 models = Models()
@@ -60,15 +64,21 @@ def _detect_locked(*args: Any, **kwargs: Any) -> DetectionResult:
         return run_detection(*args, **kwargs)
 
 
-def _detect_name_remote(samples: np.ndarray, name: str | None) -> DetectionResult:
-    assert models.classifier is not None and models.name_transcriber is not None
+def _detect_remote(samples: np.ndarray, mode: DetectMode, name: str | None) -> DetectionResult:
+    assert models.classifier is not None and models.transcriber is not None and models.remote_transcriber
     with _models_lock:
         sound = models.classifier.classify(samples)
-    # ElevenLabs төлбөртэй, хязгаартай (MAX_DEMO_TRANSCRIPTIONS): яриагүй, чимээгүй хэсгийг илгээхгүй.
+    # Төлбөртэй, цагийн хязгаартай: яриагүй, чимээгүй хэсгийг илгээхгүй (Whisper ч чимээгүйд зохиодог).
     if sound is None or sound.label == "other":
         return DetectionResult()
-    # Сүлжээний дуудлага (6 сек хүртэл): загварын lock-ийг барьвал бусад утас бүгд зогсоно.
-    return run_detection(samples, "name", models.classifier, models.name_transcriber, name=name)
+    try:
+        # Сүлжээний дуудлага (6 сек хүртэл): загварын lock-ийг барьвал бусад утас бүгд зогсоно.
+        return run_detection(samples, mode, models.classifier, models.remote_transcriber, name=name)
+    except SpeechError as exc:
+        # Хязгаар, сүлжээ, ElevenLabs-ийн алдаа апп-ыг зогсоохгүй: орон нутгийн Whisper-ээр үргэлжилнэ.
+        logger.warning("ElevenLabs %s (%s) → Whisper", exc.code, mode)
+        with _models_lock:
+            return run_detection(samples, mode, models.classifier, models.transcriber, name=name)
 
 
 @asynccontextmanager
@@ -82,8 +92,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             settings.whisper_model, settings.whisper_compute_type, settings.whisper_language
         )
         if transcription_service.configured():
-            models.name_transcriber = ElevenLabsTranscriber(transcription_service, SAMPLE_RATE)
-        logger.info("«Нэр» горим: %s", "ElevenLabs" if models.name_transcriber else "Whisper")
+            models.remote_transcriber = ElevenLabsTranscriber(transcription_service, SAMPLE_RATE)
+        backend = "ElevenLabs → Whisper" if models.remote_transcriber else "Whisper"
+        logger.info("«нэр», «ярих»: %s, цагт %d дуудлага", backend, talk_settings.elevenlabs_stt_per_hour)
     yield
 
 
@@ -144,15 +155,12 @@ async def detect(
     if duration_seconds(samples) > settings.max_audio_seconds:
         return error_response(400, "AUDIO_TOO_LONG", "Аудио хэт урт байна")
 
-    try:
-        if mode == "name" and models.name_transcriber is not None:
-            result = await run_in_threadpool(_detect_name_remote, samples, name)
-        else:
-            result = await run_in_threadpool(
-                _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
-            )
-    except SpeechError as exc:
-        return error_response(exc.status, exc.code, "Нэр таних үйлчилгээ ажиллахгүй байна")
+    if mode in REMOTE_MODES and models.remote_transcriber is not None:
+        result = await run_in_threadpool(_detect_remote, samples, mode, name)
+    else:
+        result = await run_in_threadpool(
+            _detect_locked, samples, mode, models.classifier, models.transcriber, ticket=ticket, name=name
+        )
     result.latency_ms = round((time.perf_counter() - started) * 1000)
     return JSONResponse(content=result.model_dump(by_alias=True))
 

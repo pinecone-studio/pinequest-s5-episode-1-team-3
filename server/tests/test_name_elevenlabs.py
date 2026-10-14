@@ -29,7 +29,7 @@ class RecordingTranscriber(FakeTranscriber):
 def eleven(fake_models, monkeypatch):  # noqa: F811
     remote = RecordingTranscriber("Болдоо, нааш ир")
     monkeypatch.setattr(models, "classifier", FakeClassifier(SoundResult(label="speech", score=0.8)))
-    monkeypatch.setattr(models, "name_transcriber", remote)
+    monkeypatch.setattr(models, "remote_transcriber", remote)
     return remote
 
 
@@ -48,11 +48,17 @@ def test_quiet_clip_is_not_sent_to_elevenlabs(eleven, monkeypatch, sound):
     assert eleven.calls == 0
 
 
-def test_elevenlabs_failure_uses_error_contract(eleven):
-    eleven.error = SpeechError("STT_DEMO_LIMIT", 429)
+@pytest.mark.parametrize("code, status", [("STT_DEMO_LIMIT", 429), ("STT_UNAVAILABLE", 502)])
+def test_elevenlabs_failure_falls_back_to_whisper(eleven, code, status):
+    eleven.error = SpeechError(code, status)
     response = post("name", {"name": "Болд"})
-    assert response.status_code == 429
-    assert response.json()["error"]["code"] == "STT_DEMO_LIMIT"
+    assert response.status_code == 200
+    assert response.json()["transcript"] == "А тэг хорин дөрөв, гуравдугаар цонх"  # fake_models-ийн Whisper
+
+
+def test_talk_mode_uses_elevenlabs(eleven):
+    assert post("talk").json()["transcript"] == "Болдоо, нааш ир"
+    assert eleven.calls == 1
 
 
 def test_queue_mode_still_uses_whisper(eleven):
