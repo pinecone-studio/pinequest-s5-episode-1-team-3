@@ -14,4 +14,12 @@ module.exports = defineConfig([
       'no-console': 'error',
     },
   },
+  {
+    // AGENTS.md: компонент 150 мөрөөс ихгүй. Тест нь компонент биш.
+    files: ['src/**/*.tsx'],
+    ignores: ['src/**/*.test.tsx'],
+    rules: {
+      'max-lines': ['error', { max: 150 }],
+    },
+  },
 ]);
