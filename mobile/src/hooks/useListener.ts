@@ -22,14 +22,14 @@ type Options = {
 // API гэрээ: AAC, mono, 16kHz. Илүү өндөр чанар зөвхөн upload-ыг удаашруулна.
 const DETECT_RECORDING = { ...RecordingPresets.HIGH_QUALITY, sampleRate: 16_000, numberOfChannels: 1, bitRate: 32_000 };
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 // Апп даяар ганц сонсогч (AGENTS.md). config.recordChunkMs тутам бичлэгээ
 // сервер рүү илгээж, хариуг хүлээлгүй дараагийн бичлэгээ эхэлнэ.
 export function useListener({ mode, ticket, name, onResult }: Options) {
   const recorder = useAudioRecorder(DETECT_RECORDING);
   const active = useRef(false);
   const running = useRef(false);
+  const starting = useRef(false);
+  const cancelWait = useRef<() => void>(() => undefined);
   // Зогсоогоод дахин асаахад өмнөх хүсэлтийн хариу шинэ мэдэгдэл үүсгэхгүй.
   const session = useRef(0);
   const restart = useRef<() => Promise<void>>(async () => undefined);
@@ -43,6 +43,8 @@ export function useListener({ mode, ticket, name, onResult }: Options) {
   useEffect(
     () => () => {
       active.current = false;
+      session.current += 1;
+      cancelWait.current();
     },
     [],
   );
@@ -67,11 +69,17 @@ export function useListener({ mode, ticket, name, onResult }: Options) {
     running.current = true;
     try {
       while (active.current) {
+        const id = session.current;
         await recorder.prepareToRecordAsync();
-        recorder.record();
-        await wait(config.recordChunkMs);
+        if (active.current && id === session.current) {
+          recorder.record();
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, config.recordChunkMs);
+            cancelWait.current = () => { clearTimeout(timer); resolve(); };
+          });
+        }
         await recorder.stop();
-        if (recorder.uri && active.current) void send(recorder.uri);
+        if (recorder.uri && active.current && id === session.current) void send(recorder.uri);
       }
     } catch {
       active.current = false;
@@ -88,23 +96,33 @@ export function useListener({ mode, ticket, name, onResult }: Options) {
   }, [loop]);
 
   const start = useCallback(async () => {
-    if (active.current) return;
+    if (active.current || starting.current) return;
+    starting.current = true;
+    const id = ++session.current;
     setError(null);
-    const permission = await requestRecordingPermissionsAsync();
-    if (!permission.granted) {
-      setError("permission");
-      return;
+    try {
+      const permission = await requestRecordingPermissionsAsync();
+      if (id !== session.current) return;
+      if (!permission.granted) {
+        setError("permission");
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      if (id !== session.current) return;
+      active.current = true;
+      setListening(true);
+      // Өмнөх давталт бичлэгээ дуусгаж байвал түүнийг үргэлжлүүлнэ
+      if (!running.current) void loop();
+    } finally {
+      if (id === session.current) starting.current = false;
     }
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-    session.current += 1;
-    active.current = true;
-    setListening(true);
-    // Өмнөх давталт бичлэгээ дуусгаж байвал түүнийг үргэлжлүүлнэ
-    if (!running.current) void loop();
   }, [loop]);
 
   const stop = useCallback(() => {
     active.current = false;
+    starting.current = false;
+    session.current += 1;
+    cancelWait.current();
     setListening(false);
   }, []);
 
