@@ -1,9 +1,11 @@
-"""Алхам 4: бичлэг бүрийг YAMNet-ийн 521 онооны дундаж + max (1042 тоо) болгоно.
+"""Алхам 4: бичлэгийг апп шиг 3 сек хэсэг болгож, хэсэг бүрийг YAMNet 521 онооны дундаж + max (1042) болгоно.
 
 Серверийн YamnetClassifier.scores, head_features-ийг шууд ашиглана: сургалт, сервер нэг дууг ижил сонсоно.
 
 Оролт:  data/manifest.csv, data/16k/…wav (prepare.py)
-Гаралт: data/features.npz (X, label, split, group, name). Git-д орохгүй.
+Гаралт: data/features.npz. Git-д орохгүй.
+    X, clip       хэсэг бүрийн 1042 тоо ба аль бичлэгийнх вэ
+    label, split, group, name   бичлэг бүрийн (clip-ээр индекслэнэ)
 
 Ажиллуулах: sh ../../server/scripts/download_models.sh && .venv/bin/python features.py
 """
@@ -27,6 +29,9 @@ FEATURES = DATA / "features.npz"
 YAMNET = ROOT / "server" / "models" / "yamnet.tflite"
 PCM_SCALE = 32_768
 PROGRESS_EVERY = 1000
+# Апп 3 сек тутам илгээдэг (mobile/src/config.ts → recordChunkMs).
+# 30 сек бичлэгийн дундаж богино хонхыг уусгадаг.
+SEGMENT_SECONDS = 3
 
 logger = logging.getLogger("features")
 
@@ -38,27 +43,42 @@ def load_wav(path: Path) -> np.ndarray:
     return pcm.astype(np.float32) / PCM_SCALE
 
 
+def segments(samples: np.ndarray) -> list[np.ndarray]:
+    size = SAMPLE_RATE * SEGMENT_SECONDS
+    parts = [samples[start : start + size] for start in range(0, len(samples), size)]
+    # 1 сек хүрэхгүй үлдэгдлийг өмнөхтэй нь нийлүүлнэ: дуу төгсгөлд нь байж болно.
+    if len(parts) > 1 and len(parts[-1]) < SAMPLE_RATE:
+        parts[-2:] = [np.concatenate(parts[-2:])]
+    return parts
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     with MANIFEST.open(newline="") as manifest:
         rows = list(csv.DictReader(manifest))
     yamnet = YamnetClassifier(str(YAMNET), min_score=0.0)
-    features, kept = [], []
-    for i, row in enumerate(rows, start=1):
-        scores = yamnet.scores(load_wav(DATA / "16k" / row["name"]))
-        if len(scores) == 0:
-            logger.warning("YAMNet оноо өгсөнгүй, алгаслаа: %s", row["name"])
-            continue
-        features.append(head_features(scores))
-        kept.append(row)
-        if i % PROGRESS_EVERY == 0:
-            logger.info("%d / %d", i, len(rows))
+    features, clips = [], []
+    for i, row in enumerate(rows):
+        for part in segments(load_wav(DATA / "16k" / row["name"])):
+            scores = yamnet.scores(part)
+            if len(scores):
+                features.append(head_features(scores))
+                clips.append(i)
+        if (i + 1) % PROGRESS_EVERY == 0:
+            logger.info("%d / %d", i + 1, len(rows))
     np.savez_compressed(
         FEATURES,
         X=np.stack(features),
-        **{key: np.array([row[key] for row in kept]) for key in ("label", "split", "group", "name")},
+        clip=np.array(clips),
+        **{key: np.array([row[key] for row in rows]) for key in ("label", "split", "group", "name")},
     )
-    logger.info("%d бичлэг × %d тоо → %s", len(kept), features[0].size, FEATURES.relative_to(ROOT))
+    logger.info(
+        "%d бичлэг → %d хэсэг × %d тоо → %s",
+        len(rows),
+        len(clips),
+        features[0].size,
+        FEATURES.relative_to(ROOT),
+    )
 
 
 if __name__ == "__main__":

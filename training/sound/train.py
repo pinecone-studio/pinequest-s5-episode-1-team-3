@@ -1,4 +1,4 @@
-"""Алхам 5: YAMNet шинж (features.npz) дээр MLP толгой сургаж, босгыг train дээр сонгоно.
+"""Алхам 5: 3 сек хэсгийн YAMNet шинж (features.npz) дээр MLP толгой сургаж, босгыг train дээр сонгоно.
 
 Гаралт (Git-д орохгүй):
     data/sound_head.json     сервер (SOUND_HEAD_MODEL) болон утас ачаална: scaler + давхарга + босго
@@ -21,20 +21,25 @@ from sklearn.preprocessing import StandardScaler
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "server"))
-from app.models.sound import SoundHead  # noqa: E402
+from app.models.sound import LABEL_MAP, YAMNET_CLASSES, SoundHead, yamnet_names  # noqa: E402
 
 DATA = Path(__file__).resolve().parent / "data"
 FEATURES = DATA / "features.npz"
 HEAD = DATA / "sound_head.joblib"
 HEAD_JSON = DATA / "sound_head.json"
+YAMNET = ROOT / "server" / "models" / "yamnet.tflite"
 ALERTS = ("knock", "doorbell", "alarm")
 HIDDEN_UNITS = 256
-L2_PENALTY = 1e-3
+# Train-ийн 20% дээр 1e-3…3-ыг харьцуулсан: 0.1 хамгийн сайн (mean AP 0.29 vs 0.22).
+# Цөөн жишээг (хонх 29) цээжлэхээс сэргийлнэ.
+L2_PENALTY = 0.1
 MAX_EPOCHS = 500
 SEED = 0  # Дахин ажиллуулахад ижил үр дүн
 TARGET_PRECISION = 0.95
 CV_FOLDS = 5
-THRESHOLDS = np.round(np.arange(0.30, 1.0, 0.05), 2)
+THRESHOLDS = np.round(np.r_[np.arange(0.30, 0.96, 0.05), 0.97, 0.99], 2)
+# Мэдэгдэлгүй бичлэгээс хэдэн хэсэг авах: бүгдийг нь авбал сургалт ~10 дахин удаан.
+MAX_QUIET_WINDOWS = 2
 
 logger = logging.getLogger("train")
 
@@ -45,6 +50,34 @@ def balance(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     largest = counts.max()
     picked = np.concatenate([np.resize(np.flatnonzero(y == label), largest) for label in labels])
     return x[picked], y[picked]
+
+
+def training_windows(data: np.lib.npyio.NpzFile) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """FSD50K-ийн шошго бүхэл бичлэгт: 13 сек хонхны бичлэгийн ихэнх хэсэгт хонх дуугардаггүй.
+
+    Мэдэгдлийн бичлэгээс YAMNet-ийн тухайн ангиллын (LABEL_MAP) оноо хамгийн өндөр хэсгийг л авна.
+    """
+    names = yamnet_names(str(YAMNET))
+    columns = {
+        label: YAMNET_CLASSES + np.array([i for i, name in enumerate(names) if LABEL_MAP.get(name) == label])
+        for label in ALERTS
+    }
+    # NpzFile нь data["X"] бүрт файлаас дахин задалдаг: давталтаас өмнө нэг удаа уншина.
+    x, clip, labels, split = data["X"], data["clip"], data["label"], data["split"]
+    keep = []
+    for windows in np.split(np.arange(len(clip)), np.flatnonzero(np.diff(clip)) + 1):
+        label = labels[clip[windows[0]]]
+        if split[clip[windows[0]]] != "train":
+            continue
+        if label in columns:
+            keep.append(windows[[x[windows][:, columns[label]].max(axis=1).argmax()]])
+        else:
+            spread = (
+                np.linspace(0, len(windows) - 1, min(len(windows), MAX_QUIET_WINDOWS)).round().astype(int)
+            )
+            keep.append(windows[np.unique(spread)])
+    rows = np.concatenate(keep)
+    return x[rows], labels[clip[rows]], data["group"][clip[rows]]
 
 
 def train(x: np.ndarray, y: np.ndarray) -> Pipeline:
@@ -72,7 +105,10 @@ def precision(truth: np.ndarray, flagged: np.ndarray) -> float:
 
 
 def pick_thresholds(probs: np.ndarray, y: np.ndarray, classes: np.ndarray) -> dict[str, float]:
-    """Precision ≥95% хангах хамгийн бага босго (recall хамгийн их). Хангахгүй бол хамгийн өндөр."""
+    """Precision ≥95% хангах хамгийн бага босго (recall хамгийн их). Хангахгүй бол хамгийн өндөр.
+
+    F1 босгыг туршсан: recall бага зэрэг өссөн ч худал мэдэгдэл 5.5 → 13.3/цаг. Худал мэдэгдэл түрүүлнэ.
+    """
     chosen = {}
     for label in (label for label in ALERTS if label in classes):
         column = probs[:, np.flatnonzero(classes == label)[0]]
@@ -99,9 +135,9 @@ def export_json(head: Pipeline, thresholds: dict[str, float]) -> None:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     data = np.load(FEATURES)
-    rows = data["split"] == "train"
-    x, y = data["X"][rows], data["label"][rows]
-    probs, classes = out_of_fold_probs(x, y, data["group"][rows])
+    x, y, groups = training_windows(data)
+    logger.info("Сургалтын хэсэг: %s", dict(zip(*np.unique(y, return_counts=True), strict=True)))
+    probs, classes = out_of_fold_probs(x, y, groups)
     thresholds = pick_thresholds(probs, y, classes)
     logger.info("Босго (train CV): %s", thresholds)
 
