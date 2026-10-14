@@ -87,6 +87,9 @@ def test_detect_never_runs_models_concurrently(fake_models):
                 running -= 1
             return SoundResult(label="knock", score=0.9)
 
+        def listen(self, samples):
+            return self.classify(samples), None
+
     models.classifier = SlowClassifier()
     threads = [threading.Thread(target=post, args=("home",)) for _ in range(3)]
     for thread in threads:

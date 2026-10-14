@@ -16,7 +16,7 @@ from typing import Protocol
 import numpy as np
 
 from app.audio import SAMPLE_RATE
-from app.schemas import SoundLabel, SoundResult
+from app.schemas import HeardKind, HeardSound, SoundLabel, SoundResult
 
 LABEL_MAP: dict[str, SoundLabel] = {
     "Knock": "knock",
@@ -34,6 +34,23 @@ LABEL_MAP: dict[str, SoundLabel] = {
     "Conversation": "speech",
     "Narration, monologue": "speech",
 }
+# «Гэр» дэлгэцэд харуулах дуу (heard). Мэдэгдлийн LABEL_MAP-аас тусдаа: нохой, хүүхэд уйлах г.м.
+HEARD_MAP: dict[str, HeardKind] = {
+    "Dog": "dog", "Bark": "dog", "Yip": "dog", "Howl": "dog", "Bow-wow": "dog",
+    "Growling": "dog", "Whimper (dog)": "dog", "Canidae, dogs, wolves": "dog",
+    "Cat": "cat", "Purr": "cat", "Meow": "cat",
+    "Baby cry, infant cry": "baby", "Crying, sobbing": "baby",
+    "Shout": "calling", "Yell": "calling", "Children shouting": "calling", "Screaming": "calling",
+    "Speech": "speech", "Child speech, kid speaking": "speech", "Conversation": "speech",
+    "Narration, monologue": "speech",
+    "Knock": "knock", "Tap": "knock",
+    "Doorbell": "doorbell", "Ding-dong": "doorbell", "Buzzer": "doorbell",
+    "Alarm": "alarm", "Alarm clock": "alarm", "Smoke detector, smoke alarm": "alarm", "Fire alarm": "alarm",
+    "Door": "door", "Sliding door": "door",
+    "Telephone": "phone", "Telephone bell ringing": "phone", "Ringtone": "phone",
+    "Music": "music",
+    "Water tap, faucet": "water", "Sink (filling or washing)": "water",
+}  # fmt: skip
 YAMNET_CLASSES = 521
 LOG_TOP = 3
 
@@ -43,18 +60,33 @@ logger = logging.getLogger("signo")
 class SoundClassifier(Protocol):
     def classify(self, samples: np.ndarray) -> SoundResult | None: ...
 
+    def listen(self, samples: np.ndarray) -> tuple[SoundResult | None, HeardSound | None]: ...
+
+
+def _strongest(scores: dict[str, float], min_score: float, table: dict[str, str]) -> tuple[str, float] | None:
+    """Хүснэгтэд орох хамгийн өндөр оноотой ангилал.
+
+    Яриа бусдыг дарахгүй: зурагт ярьж байхад нохой хуцвал нохой.
+    """
+    best: tuple[str, float] | None = None
+    for name, score in scores.items():
+        kind = table.get(name)
+        if kind is None or score < min_score:
+            continue
+        if best is None or (kind != "speech", score) > (best[0] != "speech", best[1]):
+            best = (kind, round(score, 3))
+    return best
+
 
 def pick_label(scores: dict[str, float], min_score: float) -> SoundResult | None:
     """YAMNet-ийн ангилал → оноо. Манай ангилалд орох хамгийн өндөр оноотойг сонгоно."""
-    best: SoundResult | None = None
-    for name, score in scores.items():
-        label = LABEL_MAP.get(name)
-        if label is None or score < min_score:
-            continue
-        # Talking in the room must not hide a knock or doorbell in the same clip.
-        if best is None or (label != "speech", score) > (best.label != "speech", best.score):
-            best = SoundResult(label=label, score=round(score, 3))
-    return best
+    best = _strongest(scores, min_score, LABEL_MAP)
+    return SoundResult(label=best[0], score=best[1]) if best else None
+
+
+def pick_heard(scores: dict[str, float], min_score: float) -> HeardSound | None:
+    best = _strongest(scores, min_score, HEARD_MAP)
+    return HeardSound(kind=best[0], score=best[1]) if best else None
 
 
 def yamnet_names(model_path: str) -> list[str]:
@@ -133,13 +165,19 @@ class YamnetClassifier:
         return scores
 
     def classify(self, samples: np.ndarray) -> SoundResult | None:
+        return self.listen(samples)[0]
+
+    def listen(self, samples: np.ndarray) -> tuple[SoundResult | None, HeardSound | None]:
+        """(мэдэгдэл, «Гэр» дэлгэцэд харуулах дуу). YAMNet-ийг нэг л удаа ажиллуулна."""
         scores = self.scores(samples)
         if len(scores) == 0:
-            return None
+            return None, None
         peak = scores.max(axis=0)
         # Жинхэнэ дуун дээр ангиллыг тааруулахад хэрэгтэй: YAMNet юу гэж сонссоныг лог руу бичнэ
         top = np.argsort(peak)[::-1][:LOG_TOP]
         logger.info("YAMNet: %s", ", ".join(f"{self._names[i]} {peak[i]:.2f}" for i in top))
+        named = dict(zip(self._names, peak.tolist(), strict=True))
+        heard = pick_heard(named, self._min_score)
         if self._head is not None:
-            return self._head.label(self._head.probabilities(head_features(scores)))
-        return pick_label(dict(zip(self._names, peak.tolist(), strict=True)), self._min_score)
+            return self._head.label(self._head.probabilities(head_features(scores))), heard
+        return pick_label(named, self._min_score), heard

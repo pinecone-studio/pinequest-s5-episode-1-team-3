@@ -174,6 +174,8 @@ POST /api/v1/detect   multipart/form-data
      name    "Болд"    (name)
 
 → 200 { sound:      { label: "knock" | "doorbell" | "alarm" | "speech" | "other", score: 0–1 } | null,
+        heard:      { kind: "dog" | "cat" | "baby" | "calling" | "speech" | "knock" | "doorbell" | "alarm"
+                          | "door" | "phone" | "music" | "water", score: 0–1 } | null,   (home. «Гэр» дэлгэцэд icon-той харуулна)
         transcript: string | null,
         match:      { type: "queue" | "name", value: string, window: number | null } | null,
         latencyMs:  number }

@@ -10,6 +10,10 @@ from pydantic.alias_generators import to_camel
 
 DetectMode = Literal["home", "queue", "name", "talk"]
 SoundLabel = Literal["knock", "doorbell", "alarm", "speech", "other"]
+# «Гэр» дэлгэцэд icon-той харуулах дуу. Мэдэгдэл (sound) биш, зөвхөн харуулна.
+HeardKind = Literal[
+    "dog", "cat", "baby", "calling", "speech", "knock", "doorbell", "alarm", "door", "phone", "music", "water"
+]
 
 
 class CamelModel(BaseModel):
@@ -23,6 +27,11 @@ class SoundResult(CamelModel):
     score: float = Field(ge=0, le=1)
 
 
+class HeardSound(CamelModel):
+    kind: HeardKind
+    score: float = Field(ge=0, le=1)
+
+
 class DetectionMatch(CamelModel):
     type: Literal["queue", "name"]
     value: str
@@ -31,6 +40,7 @@ class DetectionMatch(CamelModel):
 
 class DetectionResult(CamelModel):
     sound: SoundResult | None = None
+    heard: HeardSound | None = None
     transcript: str | None = None
     match: DetectionMatch | None = None
     latency_ms: int = Field(default=0, ge=0)
