@@ -46,6 +46,17 @@ NOT_HOME_ALARM = frozenset(
         "Vehicle",
     }
 )
+# v3: FSD50K dev-ээс зөвхөн сургалтад. Test нь v2-тэй яг ижил үлдэнэ (үр дүнг шууд харьцуулна).
+# Мэдэгдлийн бичлэгийг бүгдийг, андуурагдах дууг (утас, сүмийн хонх, хаалга хаах …) ангилал бүрээс хязгаартай авна:
+# зөвхөн хонх нэмбэл загвар бүх «дин-дон» дээр мэдэгдэнэ.
+DEV_CONFUSERS = (
+    "Telephone", "Ringtone", "Siren", "Bicycle_bell", "Chime", "Bell", "Church_bell", "Tick-tock",
+    "Door", "Slam", "Tap", "Cupboard_open_or_close", "Drawer_open_or_close", "Hammer",
+    "Wind_chime", "Glockenspiel", "Microwave_oven",
+)  # fmt: skip
+DEV_ALERTS = ("doorbell", "knock")
+DEV_PER_CONFUSER = 120
+DEV_SPEECH = 300
 PCM_MAX = 32_767
 
 logger = logging.getLogger("prepare")
@@ -102,7 +113,9 @@ def fsd50k_clips(skip: set[str]) -> list[Clip]:
         return []
     with (FSD50K / "FSD50K.ground_truth" / "eval.csv").open(newline="") as meta:
         rows = [row for row in csv.DictReader(meta) if f"fs-{row['fname']}" not in skip]
-    info = json.loads((FSD50K / "FSD50K.metadata" / "eval_clips_info_FSD50K.json").read_text())
+    info = json.loads(
+        (FSD50K / "FSD50K.metadata" / "eval_clips_info_FSD50K.json").read_text()
+    )
     clips = []
     for row in rows:
         # Нэг хүн ижил хонхоо олон удаа бичиж оруулдаг: хүнээр нь бүлэглэнэ.
@@ -114,6 +127,62 @@ def fsd50k_clips(skip: set[str]) -> list[Clip]:
                 label=fsd50k_label(set(row["labels"].split(","))),
                 group=group,
                 split=hashed_split(group),
+            )
+        )
+    return clips
+
+
+def dev_selection() -> list[dict[str, str]]:
+    """FSD50K dev-ээс сургалтад нэмэх бичлэг. download_fsd50k.py ч яг үүнийг татна."""
+    with (FSD50K / "FSD50K.ground_truth" / "dev.csv").open(newline="") as meta:
+        rows = sorted(
+            csv.DictReader(meta), key=lambda row: zlib.crc32(row["fname"].encode())
+        )
+    picked, taken = [], Counter()
+    for row in rows:
+        labels = set(row["labels"].split(","))
+        label = fsd50k_label(labels)
+        quota = (
+            [(c, DEV_PER_CONFUSER) for c in DEV_CONFUSERS if c in labels]
+            if label == "other"
+            else []
+        )
+        if label == "speech":
+            quota = [("speech", DEV_SPEECH)]
+        # Dev-ийн «Alarm» хэт өргөн (аянга, хашгирах …): нэмэхэд худал сэрүүлэг 7 → 22 бичлэг.
+        if label in DEV_ALERTS or any(taken[key] < limit for key, limit in quota):
+            picked.append(row)
+            taken.update(key for key, _ in quota)
+    return picked
+
+
+def fsd50k_dev_clips(skip: set[str], test_groups: set[str]) -> list[Clip]:
+    """Dev нь зөвхөн train. Test-д орсон хүний (uploader) бичлэгийг алгасна: нэг хүний дуу хоёуланд орохгүй."""
+    audio = FSD50K / "FSD50K.dev_audio"
+    if not audio.exists():
+        logger.warning(
+            "FSD50K dev алга (%s): download_fsd50k.py", audio.relative_to(DATA)
+        )
+        return []
+    info = json.loads(
+        (FSD50K / "FSD50K.metadata" / "dev_clips_info_FSD50K.json").read_text()
+    )
+    clips = []
+    for row in dev_selection():
+        group = f"up-{info[row['fname']]['uploader']}"
+        if (
+            f"fs-{row['fname']}" in skip
+            or group in test_groups
+            or not (audio / f"{row['fname']}.wav").exists()
+        ):
+            continue
+        clips.append(
+            Clip(
+                source=audio / f"{row['fname']}.wav",
+                name=f"fsd50k-dev/{row['fname']}.wav",
+                label=fsd50k_label(set(row["labels"].split(","))),
+                group=group,
+                split="train",
             )
         )
     return clips
@@ -158,19 +227,26 @@ def write_manifest(clips: list[Clip]) -> None:
     with MANIFEST.open("w", newline="") as out:
         writer = csv.writer(out)
         writer.writerow(["name", "label", "group", "split"])
-        writer.writerows([clip.name, clip.label, clip.group, clip.split] for clip in clips)
+        writer.writerows(
+            [clip.name, clip.label, clip.group, clip.split] for clip in clips
+        )
 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     esc50 = esc50_clips()
-    clips = convert(esc50 + fsd50k_clips({clip.group for clip in esc50}))
+    skip = {clip.group for clip in esc50}
+    evaluation = esc50 + fsd50k_clips(skip)
+    test_groups = {clip.group for clip in evaluation if clip.split == "test"}
+    clips = convert(evaluation + fsd50k_dev_clips(skip, test_groups))
     check_split(clips)
     write_manifest(clips)
     counts = Counter((clip.label, clip.split) for clip in clips)
     logger.info("%-9s %6s %6s", "ангилал", "train", "test")
     for label in sorted({clip.label for clip in clips}):
-        logger.info("%-9s %6d %6d", label, counts[label, "train"], counts[label, "test"])
+        logger.info(
+            "%-9s %6d %6d", label, counts[label, "train"], counts[label, "test"]
+        )
     logger.info("Нийт %d бичлэг → %s", len(clips), MANIFEST.relative_to(ROOT))
 
 
