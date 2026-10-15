@@ -22,17 +22,24 @@ def test_parse_ticket_rejects_garbage(raw):
     assert parse_ticket(raw) is None
 
 
-def test_ticket_label():
-    assert Ticket("А", 24).label == "А-024"
-    assert Ticket(None, 7).label == "007"
+def test_ticket_label_is_number_only():
+    assert Ticket("А", 24).label == "24"
+    assert Ticket(None, 7).label == "7"
 
 
-def test_same_letter_and_number_matches():
-    assert queue_matches(parse_queue_call("А тэг хорин дөрөв гуравдугаар цонх"), Ticket("А", 24))
+def test_same_number_matches():
+    assert queue_matches(parse_queue_call("А тэг хорин дөрөв гуравдугаар цонх"), Ticket(None, 24))
 
 
-def test_other_letter_does_not_match():
-    assert not queue_matches(parse_queue_call("Бэ тэг хорин дөрөв гуравдугаар цонх"), Ticket("А", 24))
+def test_letters_are_ignored():
+    # Монголд зарлалд үсэг дууддаггүй: Whisper «бай» гэх мэт сонссон ч дугаараар нь таарна.
+    assert queue_matches(parse_queue_call("Бэ тэг хорин дөрөв гуравдугаар цонх"), Ticket("А", 24))
+    assert queue_matches(parse_queue_call("бай хорин дөрвөн дугаартай үйлчлүүлэгч"), Ticket(None, 24))
+
+
+@pytest.mark.parametrize("text", ["тэг нэг тав дугаартай үйлчлүүлэгч", "арван тав дугаартай үйлчлүүлэгч"])
+def test_leading_zero_and_words_match_same_ticket(text):
+    assert queue_matches(parse_queue_call(text), Ticket(None, 15))
 
 
 def test_ticket_without_letter_matches_any_letter():

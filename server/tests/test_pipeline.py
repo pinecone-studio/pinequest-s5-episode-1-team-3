@@ -16,7 +16,7 @@ def test_queue_without_letter_matches(silence):
     transcriber = FakeTranscriber("хорин дөрөв дугаартай үйлчлүүлэгч тавдугаар цонхонд ирнэ үү")
     result = run_detection(silence, "queue", FakeClassifier(), transcriber, ticket="24")
     assert result.match is not None
-    assert (result.match.value, result.match.window) == ("024", 5)
+    assert (result.match.value, result.match.window) == ("24", 5)
 
 
 def test_name_match(silence):

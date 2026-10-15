@@ -74,7 +74,8 @@ function TicketInput({ value, error, scale, onChange, onSubmit }: InputProps) {
         onSubmitEditing={onSubmit}
         placeholder={t.placeholder}
         placeholderTextColor={colors.text}
-        autoCapitalize="characters"
+        keyboardType="number-pad"
+        maxLength={3}
         autoCorrect={false}
         underlineColorAndroid="transparent"
         returnKeyType="go"
