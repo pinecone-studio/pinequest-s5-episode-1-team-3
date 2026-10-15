@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useIncomingTalk } from "@/hooks/useIncomingTalk";
-import { matchIncomingSign, type IncomingSignId } from "@/lib/incomingSigns";
+import { config } from "@/config";
+import { SIGN_VOCABULARY } from "@/lib/signDictionary";
+import { planSigns, type SignPlan } from "@/lib/signPlan";
 import { strings } from "@/strings";
 import { ActionButton } from "./ActionButton";
 import { RecordingReplay } from "./RecordingReplay";
@@ -10,13 +12,15 @@ import { TalkSignPreview } from "./TalkSignPreview";
 import { colors, fontSize, radius, spacing } from "./theme";
 
 const t = strings.talk.incoming;
+// Видеоны хаяг тохируулаагүй бол дохио санал болгохгүй: нээгдэхгүй видео харуулахаас бичвэр дээр.
+const VOCABULARY: ReadonlySet<string> = config.signVideoBaseUrl ? SIGN_VOCABULARY : new Set();
 
 export function IncomingTalkPanel({ onListen, onBusy }: { onListen: () => void; onBusy: (busy: boolean) => void }) {
   const incoming = useIncomingTalk();
-  const [preview, setPreview] = useState<IncomingSignId | null>(null);
+  const [preview, setPreview] = useState<SignPlan | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [replayBusy, setReplayBusy] = useState(false);
-  const match = incoming.transcript ? matchIncomingSign(incoming.transcript) : null;
+  const match = incoming.transcript ? planSigns(incoming.transcript, VOCABULARY) : null;
   const shown = preview ?? (incoming.transcript !== dismissed ? match : null);
   useEffect(() => { onBusy(incoming.busy || replayBusy); }, [incoming.busy, replayBusy, onBusy]);
   const listen = () => { onListen(); setPreview(null); setDismissed(null); void incoming.start(); };
@@ -36,10 +40,12 @@ export function IncomingTalkPanel({ onListen, onBusy }: { onListen: () => void; 
       {incoming.transcript !== null && <>
         <Text style={styles.text}>{t.transcript}</Text>
         <Text accessibilityLiveRegion="polite" style={styles.title}>{incoming.transcript || t.empty}</Text>
-        {match ? <ActionButton label={t.showSign} onPress={() => setPreview(match)} /> : incoming.transcript && <Text style={styles.text}>{t.noMatch}</Text>}
-        {match === "helpQuestion" && <Text style={styles.text}>{t.helpNotice}</Text>}
+        {match?.kind === "keywords" && <Text style={styles.text}>{t.keywordsFound}: {match.words.join(", ")}</Text>}
+        {match ? <ActionButton label={match.kind === "phrase" ? t.showSign : t.showKeywordSigns} onPress={() => setPreview(match)} />
+          : incoming.transcript && <Text style={styles.text}>{t.noMatch}</Text>}
+        {match?.kind === "phrase" && match.phrase === "helpQuestion" && <Text style={styles.text}>{t.helpNotice}</Text>}
       </>}
-      {shown && <TalkSignPreview phrase={shown} onClose={() => { setPreview(null); setDismissed(incoming.transcript); }} />}
+      {shown && <TalkSignPreview plan={shown} onClose={() => { setPreview(null); setDismissed(incoming.transcript); }} />}
     </View>
   );
 }
