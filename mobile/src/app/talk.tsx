@@ -1,29 +1,47 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Modal, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ActionButton } from "@/components/ActionButton";
 import { IncomingTalkPanel } from "@/components/IncomingTalkPanel";
+import { PhraseBoard, QuickReplies } from "@/components/PhraseBoard";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { TalkPhraseCard } from "@/components/TalkPhraseCard";
+import { SignSequence } from "@/components/SignSequence";
 import { TalkSignPreview } from "@/components/TalkSignPreview";
-import { colors, fontSize, radius, spacing } from "@/components/theme";
+import { colors, fontSize, spacing } from "@/components/theme";
+import { useIncomingTalk } from "@/hooks/useIncomingTalk";
 import { useTalkSpeech } from "@/hooks/useTalkSpeech";
-import { PHRASE_SIGNS } from "@/lib/signPlan";
-import { PHRASE_IDS, type PhraseId } from "@/lib/talk";
+import { BOARD_PHRASES, type BoardPhraseId } from "@/lib/phraseBoard";
 import { strings } from "@/strings";
 
 const t = strings.talk;
+// Нөгөө хүн утасны дэлгэцийг хол зайнаас уншина. Доор нь дохионы бичлэг багтах ёстой.
+const SHOWN_TEXT_SIZE = fontSize.title * 1.5;
 
 export default function TalkScreen() {
   const router = useRouter();
   const speech = useTalkSpeech();
-  const [previewPhrase, setPreviewPhrase] = useState<PhraseId | null>(null);
+  const incoming = useIncomingTalk();
+  const scroll = useRef<ScrollView>(null);
+  const [previewPhrase, setPreviewPhrase] = useState<BoardPhraseId | null>(null);
+  const [shown, setShown] = useState<BoardPhraseId | null>(null);
   const [incomingBusy, setIncomingBusy] = useState(false);
-  const preview = (phrase: PhraseId) => {
+  const speak = (phrase: BoardPhraseId) => {
+    setShown(phrase);
+    void speech.speak(phrase);
+  };
+  const preview = (phrase: BoardPhraseId) => {
     speech.stop();
     setPreviewPhrase(phrase);
+  };
+  // Хэлсний дараа шууд нөгөө хүний хариуг сонсоно: сонсох хэсэг дээр байгаа тул тийш гүйлгэнэ.
+  const listenReply = () => {
+    speech.stop();
+    setShown(null);
+    scroll.current?.scrollTo({ y: 0 });
+    void incoming.start();
   };
   const goBack = () => {
     speech.stop();
@@ -32,42 +50,49 @@ export default function TalkScreen() {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer scrollRef={scroll} footer={<QuickReplies selected={speech.selected} disabled={incomingBusy} onSpeak={speak} />}>
       <ScreenHeader title={t.title} backLabel={t.back} onBack={goBack} />
-      <IncomingTalkPanel onListen={speech.stop} onBusy={setIncomingBusy} />
-      <Text style={styles.instruction}>{t.instruction}</Text>
-      <Text style={styles.category}>{t.category}</Text>
-      {PHRASE_IDS.map((phrase) => <TalkPhraseCard key={phrase} phrase={phrase} selected={speech.selected === phrase} disabled={speech.loading || incomingBusy} onSelect={() => speech.select(phrase)} onSpeak={() => void speech.speak(phrase)} onPreview={() => { if (!incomingBusy) preview(phrase); }} />)}
-      <SpeechOutput speech={speech} disabled={incomingBusy} />
-      {previewPhrase && <TalkSignPreview plan={{ kind: "phrase", phrase: previewPhrase, words: PHRASE_SIGNS[previewPhrase] }} onClose={() => setPreviewPhrase(null)} />}
+      <IncomingTalkPanel incoming={incoming} onListen={speech.stop} onBusy={setIncomingBusy} />
+      <PhraseBoard selected={speech.selected} disabled={incomingBusy} onSpeak={speak} onPreview={preview} />
+      {shown && <ShownPhrase phrase={shown} speech={speech} onListenReply={listenReply} onClose={() => { speech.stop(); setShown(null); }} />}
+      {previewPhrase && <TalkSignPreview plan={{ kind: "board", phrase: previewPhrase, words: BOARD_PHRASES[previewPhrase].signs }} onClose={() => setPreviewPhrase(null)} />}
       <Text style={styles.source}>{t.source}</Text>
     </ScreenContainer>
   );
 }
 
-function SpeechOutput({ speech, disabled }: { speech: ReturnType<typeof useTalkSpeech>; disabled: boolean }) {
-  const phrase = speech.selected;
-  if (!phrase) return null;
+type ShownProps = { phrase: BoardPhraseId; speech: ReturnType<typeof useTalkSpeech>; onListenReply: () => void; onClose: () => void };
+
+/**
+ * Дуу сонсогдохгүй орчинд ч нөгөө хүн уншиж ойлгоно: бичвэрийг бүтэн дэлгэцээр харуулна.
+ * Дохионы бичлэг нь хэрэглэгчид зөв өгүүлбэр сонгосноо унших шаардлагагүйгээр баталгаажуулна.
+ */
+function ShownPhrase({ phrase, speech, onListenReply, onClose }: ShownProps) {
   return (
-    <View style={styles.output}>
-      <Text style={styles.instruction}>{t.selected}</Text>
-      <Text accessibilityLiveRegion="polite" style={styles.selectedText}>{t.phrases[phrase]}</Text>
-      {speech.loading && <Text accessibilityLiveRegion="polite" style={styles.instruction}>{t.loading}</Text>}
-      {speech.playing && <Text accessibilityLiveRegion="polite" style={styles.instruction}>{t.playing}</Text>}
-      {speech.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.instruction}>{t.errors[speech.error]}</Text>}
-      <View style={styles.controls}>
-        <View style={styles.control}><ActionButton label={t.repeat} icon="refresh-outline" disabled={speech.loading || disabled} onPress={() => void speech.speak(phrase)} /></View>
-        <View style={styles.control}><ActionButton label={t.stop} icon="stop-outline" disabled={!speech.loading && !speech.playing} onPress={speech.stop} /></View>
-      </View>
-    </View>
+    <Modal visible animationType="none" onRequestClose={onClose}>
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.shown}>
+          <Text style={styles.hint}>{t.selected}</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.shownText}>{t.board[phrase]}</Text>
+          {speech.playing && <Text accessibilityLiveRegion="polite" style={styles.hint}>{t.playing}</Text>}
+          {speech.failed && <Text accessibilityRole="alert" style={styles.hint}>{t.playbackError}</Text>}
+          <SignSequence key={phrase} words={BOARD_PHRASES[phrase].signs} />
+          <ActionButton label={t.listenReply} icon="mic-outline" onPress={onListenReply} />
+          <View style={styles.controls}>
+            <View style={styles.control}><ActionButton label={t.repeat} icon="refresh-outline" variant="soft" onPress={() => void speech.speak(phrase)} /></View>
+            <View style={styles.control}><ActionButton label={t.close} icon="close-outline" variant="soft" onPress={onClose} /></View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  instruction: { fontSize: fontSize.body, color: colors.textMuted },
-  category: { alignSelf: "flex-start", padding: spacing.md, backgroundColor: colors.primarySoft, borderRadius: radius.icon, fontSize: fontSize.body, fontWeight: "700", color: colors.primary },
-  output: { gap: spacing.lg, padding: spacing.xl, backgroundColor: colors.primarySoft, borderRadius: radius.card },
-  selectedText: { fontSize: fontSize.title + spacing.sm, color: colors.text, fontWeight: "800" },
+  safe: { flex: 1, backgroundColor: colors.background },
+  shown: { flexGrow: 1, justifyContent: "center", padding: spacing.xl, gap: spacing.lg },
+  hint: { fontSize: fontSize.body, color: colors.textMuted, textAlign: "center" },
+  shownText: { fontSize: SHOWN_TEXT_SIZE, fontWeight: "800", color: colors.text, textAlign: "center" },
   controls: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   control: { flexGrow: 1 },
   source: { fontSize: fontSize.body, color: colors.textMuted, textAlign: "center" },

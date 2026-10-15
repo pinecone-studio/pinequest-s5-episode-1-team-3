@@ -1,5 +1,6 @@
 import { matchIncomingSign, type IncomingSignId } from "./incomingSigns";
 import { findKeywordSigns } from "./keywordSigns";
+import type { BoardPhraseId } from "./phraseBoard";
 
 // Бүтэн өгүүлбэрийн дохио = тухайн өгүүлбэрт зориулж хүн сонгосон үгсийн дараалал.
 export const PHRASE_SIGNS: Record<IncomingSignId, readonly string[]> = {
@@ -12,6 +13,8 @@ export const PHRASE_SIGNS: Record<IncomingSignId, readonly string[]> = {
 
 export type SignPlan =
   | { kind: "phrase"; phrase: IncomingSignId; words: readonly string[] }
+  // Хэрэглэгчийн өөрөө хэлүүлэх өгүүлбэр (lib/phraseBoard.ts)
+  | { kind: "board"; phrase: BoardPhraseId; words: readonly string[] }
   | { kind: "keywords"; words: readonly string[] };
 
 /** Эхлээд бүтэн өгүүлбэр (найдвартай), үгүй бол гол үгс. Аль нь ч үгүй бол зөвхөн бичвэр. */
