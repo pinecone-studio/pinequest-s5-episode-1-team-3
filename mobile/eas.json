@@ -18,7 +18,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://sonsyo-api.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://azaanm7-sonsyo-api.hf.space",
         "EXPO_PUBLIC_USE_RN_FETCH": "1",
         "EXPO_PUBLIC_SIGN_VIDEO_BASE_URL": "https://mnsl.mn/wp-content/uploads"
       },
