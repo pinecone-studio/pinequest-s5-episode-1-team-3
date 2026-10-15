@@ -33,3 +33,6 @@ __pycache__/
 
 # Colab
 .ipynb_checkpoints/
+
+# Апп-ын хиймэл хоолой (mobile/scripts/buildPhraseAudio.ts). Хүний бичлэг биш тул Git-д орно.
+!mobile/assets/audio/*.mp3
