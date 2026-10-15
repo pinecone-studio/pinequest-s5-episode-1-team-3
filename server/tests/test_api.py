@@ -45,13 +45,17 @@ def test_home_returns_sound(fake_models):
 
 
 def test_queue_match(fake_models):
-    body = post("queue", {"ticket": "А-024"}).json()
-    assert body["match"] == {"type": "queue", "value": "А-024", "window": 3}
+    body = post("queue", {"ticket": "24"}).json()
+    assert body["match"] == {"type": "queue", "value": "24", "window": 3}
     assert body["transcript"] == "А тэг хорин дөрөв, гуравдугаар цонх"
 
 
-def test_queue_other_ticket_does_not_match(fake_models):
-    assert post("queue", {"ticket": "Б-024"}).json()["match"] is None
+def test_queue_old_app_ticket_with_letter_still_matches(fake_models):
+    assert post("queue", {"ticket": "А-024"}).json()["match"]["value"] == "24"
+
+
+def test_queue_other_number_does_not_match(fake_models):
+    assert post("queue", {"ticket": "25"}).json()["match"] is None
 
 
 @pytest.mark.parametrize(

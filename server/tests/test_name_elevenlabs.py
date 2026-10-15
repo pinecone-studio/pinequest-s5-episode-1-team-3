@@ -65,7 +65,7 @@ def test_talk_mode_uses_elevenlabs(eleven):
 
 
 def test_queue_mode_still_uses_whisper(eleven):
-    assert post("queue", {"ticket": "А-024"}).json()["match"]["value"] == "А-024"
+    assert post("queue", {"ticket": "24"}).json()["match"]["value"] == "24"
     assert eleven.calls == 0
 
 

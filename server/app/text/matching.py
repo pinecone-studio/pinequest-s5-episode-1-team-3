@@ -29,8 +29,8 @@ class Ticket:
 
     @property
     def label(self) -> str:
-        digits = f"{self.number:03d}"
-        return f"{self.letter}-{digits}" if self.letter else digits
+        # Монголд зарлалд үсэг дууддаггүй тул мэдэгдэлд зөвхөн дугаарыг, эхний тэггүй харуулна.
+        return str(self.number)
 
 
 def parse_ticket(raw: str) -> Ticket | None:
@@ -46,16 +46,12 @@ def parse_ticket(raw: str) -> Ticket | None:
 
 
 def queue_matches(call: QueueCall, ticket: Ticket) -> bool:
-    """Дугаар таарах ёстой. Үсэг нь хоёуланд нь байвал үсэг ч таарах ёстой.
+    """Зөвхөн дугаар тулгана, үсгийг тооцохгүй.
 
-    Зарлалд үсэг сонсогдоогүй бол дугаараар нь л тулгана: ээлжээ алдсанаас
-    илүү мэдэгдэл авах нь дээр.
+    Монголд зарлалд үсэг дууддаггүй. Whisper үсэг шиг үг («бай») сонсвол үсэг тулгах нь
+    мэдэгдэл алдуулдаг: ээлжээ алдсанаас илүү мэдэгдэл авах нь дээр.
     """
-    if call.number is None or call.number != ticket.number:
-        return False
-    if ticket.letter and call.letter:
-        return ticket.letter == call.letter
-    return True
+    return call.number is not None and call.number == ticket.number
 
 
 def _normalize(word: str) -> str:
