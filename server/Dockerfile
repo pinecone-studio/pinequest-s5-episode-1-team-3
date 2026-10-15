@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 # mediapipe-д шаардлагатай системийн сангууд
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl libgl1 libglib2.0-0 \
+    && apt-get install -y --no-install-recommends curl libgl1 libegl1 libgles2 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Hugging Face Spaces контейнерийг user id 1000-аар ажиллуулдаг
