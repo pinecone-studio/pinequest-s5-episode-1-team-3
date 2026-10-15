@@ -9,10 +9,27 @@ import numpy as np
 
 from app.models.sound import SoundClassifier
 from app.models.speech import Transcriber
-from app.models.stt import TALK_KEYTERMS
 from app.schemas import DetectionMatch, DetectionResult, DetectMode
 from app.text.matching import name_mentioned, parse_ticket, queue_matches
 from app.text.numbers import parse_queue_call
+
+# «Ярих» горим: үйлчилгээний цонхонд ихэвчлэн хэлдэг үг. Богино хэллэгийг Scribe тоо гэж бичдэг байсан
+# («Сайн байна уу» → «300»). 100-аас олон бол ElevenLabs хүсэлт бүрт 20 сек-ийн төлбөр авна.
+TALK_KEYTERMS: tuple[str, ...] = (
+    "Сайн байна уу",
+    "Баярлалаа",
+    "Баяртай",
+    "Уучлаарай",
+    "Тийм",
+    "Үгүй",
+    "Хүлээнэ үү",
+    "Түр хүлээгээрэй",
+    "Дараагийнх",
+    "Иргэний үнэмлэх",
+    "Гарын үсэг",
+    "Төлбөр",
+    "Цонх",
+)
 
 
 def run_detection(

@@ -11,13 +11,13 @@ from app.main import app
 from app.models.stt import (
     BUDGET_WINDOW_SECONDS,
     MAX_UPLOAD_BYTES,
-    TALK_KEYTERMS,
     TranscriptionService,
     keyterm,
     parse_audio,
     provider_body,
 )
 from app.models.tts import SpeechError
+from app.pipeline import TALK_KEYTERMS
 from app.schemas import TalkAudioRequest, TalkTranscript
 
 SETTINGS = Settings("test-secret", "", "https://provider.invalid", "eleven_v4", ())

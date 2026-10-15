@@ -12,7 +12,6 @@ import wave
 from pathlib import Path
 
 import numpy as np
-
 from train import ALERTS, FEATURES, HEAD_JSON, TARGET_PRECISION, YAMNET, precision
 
 ROOT = Path(__file__).resolve().parents[2]

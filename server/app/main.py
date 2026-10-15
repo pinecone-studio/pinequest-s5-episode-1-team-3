@@ -23,13 +23,12 @@ from app.models.sound import SoundClassifier, YamnetClassifier
 from app.models.speech import Transcriber, WhisperTranscriber
 from app.models.stt import (
     MAX_UPLOAD_BYTES,
-    TALK_KEYTERMS,
     ElevenLabsTranscriber,
     TranscriptionService,
     parse_audio,
 )
 from app.models.tts import SpeechError, SpeechService
-from app.pipeline import run_detection
+from app.pipeline import TALK_KEYTERMS, run_detection
 from app.schemas import (
     DetectionResult,
     DetectMode,
