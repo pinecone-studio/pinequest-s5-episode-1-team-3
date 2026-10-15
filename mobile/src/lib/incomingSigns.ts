@@ -15,9 +15,13 @@ const PHRASES: Record<IncomingSignId, readonly string[]> = {
   ],
 };
 
-export function matchIncomingSign(transcript: string): IncomingSignId | null {
-  const normalized = transcript.normalize("NFC").toLocaleLowerCase("mn")
+export function normalizeSpeech(transcript: string): string {
+  return transcript.normalize("NFC").toLocaleLowerCase("mn")
     .replace(/[.,!?…:;。？！]/gu, " ").replace(/\s+/gu, " ").trim();
+}
+
+export function matchIncomingSign(transcript: string): IncomingSignId | null {
+  const normalized = normalizeSpeech(transcript);
   // Match the whole utterance: a keyword alone cannot distinguish an offer from a refusal.
   return INCOMING_SIGN_IDS.find((id) => PHRASES[id].includes(normalized)) ?? null;
 }

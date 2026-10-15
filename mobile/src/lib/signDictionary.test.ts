@@ -1,9 +1,10 @@
 import { expect, test } from "@jest/globals";
 
 import { SIGN_VOCABULARY, signVideoUrl } from "./signDictionary";
+import { PHRASE_SIGNS } from "./signPlan";
 
-test("the five signs the app already used are in the dictionary", () => {
-  for (const word of ["сайн байна уу", "баярлалаа", "уучлаарай", "баяртай", "туслах"]) expect(SIGN_VOCABULARY.has(word)).toBe(true);
+test("every curated phrase sign exists in the dictionary", () => {
+  for (const word of Object.values(PHRASE_SIGNS).flat()) expect(SIGN_VOCABULARY.has(word)).toBe(true);
 });
 
 test("video URLs are percent-encoded so Cyrillic file names load", () => {

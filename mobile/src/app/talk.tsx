@@ -10,6 +10,7 @@ import { TalkPhraseCard } from "@/components/TalkPhraseCard";
 import { TalkSignPreview } from "@/components/TalkSignPreview";
 import { colors, fontSize, radius, spacing } from "@/components/theme";
 import { useTalkSpeech } from "@/hooks/useTalkSpeech";
+import { PHRASE_SIGNS } from "@/lib/signPlan";
 import { PHRASE_IDS, type PhraseId } from "@/lib/talk";
 import { strings } from "@/strings";
 
@@ -38,7 +39,7 @@ export default function TalkScreen() {
       <Text style={styles.category}>{t.category}</Text>
       {PHRASE_IDS.map((phrase) => <TalkPhraseCard key={phrase} phrase={phrase} selected={speech.selected === phrase} disabled={speech.loading || incomingBusy} onSelect={() => speech.select(phrase)} onSpeak={() => void speech.speak(phrase)} onPreview={() => { if (!incomingBusy) preview(phrase); }} />)}
       <SpeechOutput speech={speech} disabled={incomingBusy} />
-      {previewPhrase && <TalkSignPreview phrase={previewPhrase} onClose={() => setPreviewPhrase(null)} />}
+      {previewPhrase && <TalkSignPreview plan={{ kind: "phrase", phrase: previewPhrase, words: PHRASE_SIGNS[previewPhrase] }} onClose={() => setPreviewPhrase(null)} />}
       <Text style={styles.source}>{t.source}</Text>
     </ScreenContainer>
   );
