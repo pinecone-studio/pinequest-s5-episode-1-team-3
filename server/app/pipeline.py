@@ -9,6 +9,7 @@ import numpy as np
 
 from app.models.sound import SoundClassifier
 from app.models.speech import Transcriber
+from app.models.stt import TALK_KEYTERMS
 from app.schemas import DetectionMatch, DetectionResult, DetectMode
 from app.text.matching import name_mentioned, parse_ticket, queue_matches
 from app.text.numbers import parse_queue_call
@@ -26,7 +27,8 @@ def run_detection(
         sound, heard = classifier.listen(samples)
         return DetectionResult(sound=sound, heard=heard)
 
-    transcript = transcriber.transcribe(samples)
+    keyterms = (name,) if mode == "name" and name else TALK_KEYTERMS if mode == "talk" else ()
+    transcript = transcriber.transcribe(samples, keyterms)
     match: DetectionMatch | None = None
 
     if mode == "queue" and ticket:

@@ -27,7 +27,8 @@ class FakeTranscriber:
     def __init__(self, text: str = "") -> None:
         self.text = text
 
-    def transcribe(self, samples: np.ndarray) -> str:
+    def transcribe(self, samples: np.ndarray, keyterms: tuple[str, ...] = ()) -> str:
+        self.keyterms = keyterms
         return self.text
 
 

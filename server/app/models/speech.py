@@ -20,7 +20,8 @@ NO_REPEAT_NGRAM = 3
 
 
 class Transcriber(Protocol):
-    def transcribe(self, samples: np.ndarray) -> str: ...
+    # keyterms: хүлээж буй үг (жишээ нь хэрэглэгчийн нэр). Загвар түүнийг илүү зөв бичнэ.
+    def transcribe(self, samples: np.ndarray, keyterms: tuple[str, ...] = ()) -> str: ...
 
 
 class WhisperTranscriber:
@@ -30,7 +31,7 @@ class WhisperTranscriber:
         self._model = WhisperModel(model, device="cpu", compute_type=compute_type)
         self._language = language
 
-    def transcribe(self, samples: np.ndarray) -> str:
+    def transcribe(self, samples: np.ndarray, keyterms: tuple[str, ...] = ()) -> str:
         segments, _ = self._model.transcribe(
             samples,
             language=self._language,
@@ -40,5 +41,6 @@ class WhisperTranscriber:
             temperature=0.0,
             max_new_tokens=MAX_NEW_TOKENS,
             no_repeat_ngram_size=NO_REPEAT_NGRAM,
+            hotwords=" ".join(keyterms) or None,
         )
         return " ".join(segment.text.strip() for segment in segments).strip()

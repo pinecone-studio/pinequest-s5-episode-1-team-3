@@ -8,7 +8,15 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import app
-from app.models.stt import BUDGET_WINDOW_SECONDS, MAX_UPLOAD_BYTES, TranscriptionService, parse_audio
+from app.models.stt import (
+    BUDGET_WINDOW_SECONDS,
+    MAX_UPLOAD_BYTES,
+    TALK_KEYTERMS,
+    TranscriptionService,
+    keyterm,
+    parse_audio,
+    provider_body,
+)
 from app.models.tts import SpeechError
 from app.schemas import TalkAudioRequest, TalkTranscript
 
@@ -26,6 +34,22 @@ def test_service_sends_mongolian_audio_and_validates_transcript() -> None:
     assert AUDIO.audio in request.data
     # Must finish before the app's 8 s contract timeout, or the app shows "offline" instead of our error.
     assert provider.call_args.kwargs["timeout"] < 8
+    assert b"keyterms" not in request.data
+
+
+def test_name_is_sent_as_keyterm() -> None:
+    # «Болд»-ыг «Bold» гэж бичээд нэр таарахгүй байсныг дахин гаргахгүй.
+    body = provider_body(AUDIO, "scribe_v2", "b", ("Болд", "Бат-Эрдэнэ"))
+    assert body.count(b'name="keyterms"') == 2
+    assert "Бат-Эрдэнэ".encode() in body
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [(" Болд ", "Болд"), ("Бол[д]", "Бол д"), ("", None), ("а" * 50, None), ("а б в г д е", None)],
+)
+def test_keyterm_respects_provider_limits(raw: str, expected: str | None) -> None:
+    assert keyterm(raw) == expected
 
 
 @pytest.mark.parametrize("payload", [b"{}", b"not-json", b'{"text": 123}'])
@@ -72,7 +96,9 @@ def test_hourly_budget_prevents_unbounded_paid_requests(monkeypatch: pytest.Monk
 
 def test_endpoint_receives_one_audio_file(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeTranscription:
-        def transcribe(self, audio: TalkAudioRequest) -> TalkTranscript:
+        def transcribe(self, audio: TalkAudioRequest, keyterms: tuple[str, ...] = ()) -> TalkTranscript:
+            # «Сайн байна уу»-г «300» гэж бичдэг байсныг дахин гаргахгүй.
+            assert "Сайн байна уу" in keyterms
             assert audio.audio == b"demo"
             assert audio.content_type == "audio/webm"
             return TalkTranscript(text="Баярлалаа")
@@ -104,3 +130,8 @@ def test_non_multipart_input_is_rejected() -> None:
     with pytest.raises(SpeechError) as error:
         parse_audio(b"test", "audio/mp4")
     assert error.value.status == 415
+
+
+def test_talk_keyterms_fit_provider_limits() -> None:
+    assert len(TALK_KEYTERMS) <= 100  # дээш бол хүсэлт бүр 20 сек-ийн төлбөртэй
+    assert all(keyterm(term) == term for term in TALK_KEYTERMS)

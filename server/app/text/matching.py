@@ -11,6 +11,12 @@ from app.text.numbers import LETTER_NAMES, QueueCall
 NAME_SIMILARITY = 0.8
 _WORD = re.compile(r"[а-яөүёa-z]+")
 _TICKET = re.compile(r"\s*([а-яёөүa-z]?)\s*[-‐–]?\s*(\d{1,4})\s*")
+# ElevenLabs англи үгтэй ижил нэрийг латинаар бичдэг («Болд» → «Bold»). Урт хослолыг эхэлж солино.
+_LATIN_PAIRS = {"kh": "х", "ts": "ц", "ch": "ч", "sh": "ш", "ya": "я", "yo": "ё", "yu": "ю", "ye": "е"}
+_LATIN_PAIR = re.compile("|".join(_LATIN_PAIRS))
+_LATIN_LETTERS = str.maketrans("abcdefghijklmnopqrstuvwxyz", "абцдэфгхижклмнопкрстуввхйз")
+# Йотжсон үсэг, й-г хасвал «Сарая» ≈ «Сараа», «Бадбайр» ≈ «Батбаяр» ойртоно.
+_SOUND = str.maketrans({"я": "а", "ё": "о", "ю": "у", "е": "э", "ы": "и", "й": None, "ь": None, "ъ": None})
 
 
 @dataclass(frozen=True)
@@ -49,6 +55,12 @@ def queue_matches(call: QueueCall, ticket: Ticket) -> bool:
     return True
 
 
+def _normalize(word: str) -> str:
+    """Латин үсгийг кирилл болгож, сонсголоор ойр үсгүүдийг нэгтгэнэ."""
+    cyrillic = _LATIN_PAIR.sub(lambda pair: _LATIN_PAIRS[pair.group()], word).translate(_LATIN_LETTERS)
+    return cyrillic.translate(_SOUND)
+
+
 def _word_matches(word: str, target: str) -> bool:
     """Нэрээс богино үгийг тооцохгүй («бол» ≠ «Болд»)."""
     if len(word) < len(target):
@@ -60,11 +72,11 @@ def _word_matches(word: str, target: str) -> bool:
 
 
 def name_mentioned(transcript: str, name: str) -> bool:
-    """«Болдоо», «Болдыг» ≈ «Болд». «Бат-Эрдэнэ» нь «Бат-Эрдэнэ», «Батэрдэнэ» хоёуланд таарна."""
-    parts = _WORD.findall(name.lower())
+    """«Болдоо», «Болдыг», «Bold» ≈ «Болд». «Бат-Эрдэнэ» нь «Бат-Эрдэнэ», «Батэрдэнэ» хоёуланд таарна."""
+    parts = [_normalize(part) for part in _WORD.findall(name.lower())]
     if not parts:
         return False
-    words = _WORD.findall(transcript.lower())
+    words = [_normalize(word) for word in _WORD.findall(transcript.lower())]
     if any(_word_matches(word, "".join(parts)) for word in words):
         return True
     # Whisper давхар нэрийг тусдаа үг болгож бичдэг: хэсэг бүр сонсогдсон байх ёстой.

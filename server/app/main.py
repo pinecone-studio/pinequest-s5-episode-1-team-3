@@ -21,7 +21,13 @@ from app.audio import SAMPLE_RATE, AudioError, decode, duration_seconds
 from app.config import load_settings, settings
 from app.models.sound import SoundClassifier, YamnetClassifier
 from app.models.speech import Transcriber, WhisperTranscriber
-from app.models.stt import MAX_UPLOAD_BYTES, ElevenLabsTranscriber, TranscriptionService, parse_audio
+from app.models.stt import (
+    MAX_UPLOAD_BYTES,
+    TALK_KEYTERMS,
+    ElevenLabsTranscriber,
+    TranscriptionService,
+    parse_audio,
+)
 from app.models.tts import SpeechError, SpeechService
 from app.pipeline import run_detection
 from app.schemas import (
@@ -190,6 +196,6 @@ async def talk_transcribe(request: Request) -> TalkTranscript | JSONResponse:
                 raise SpeechError("AUDIO_TOO_LARGE", 413)
             body.extend(chunk)
         audio = parse_audio(bytes(body), request.headers.get("content-type", ""))
-        return await run_in_threadpool(transcription_service.transcribe, audio)
+        return await run_in_threadpool(transcription_service.transcribe, audio, TALK_KEYTERMS)
     except SpeechError as exc:
         return error_response(exc.status, exc.code, "Speech transcription is unavailable.")
