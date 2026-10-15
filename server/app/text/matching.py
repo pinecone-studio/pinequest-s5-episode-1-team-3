@@ -16,7 +16,10 @@ _LATIN_PAIRS = {"kh": "х", "ts": "ц", "ch": "ч", "sh": "ш", "ya": "я", "yo"
 _LATIN_PAIR = re.compile("|".join(_LATIN_PAIRS))
 _LATIN_LETTERS = str.maketrans("abcdefghijklmnopqrstuvwxyz", "абцдэфгхижклмнопкрстуввхйз")
 # Йотжсон үсэг, й-г хасвал «Сарая» ≈ «Сараа», «Бадбайр» ≈ «Батбаяр» ойртоно.
-_SOUND = str.maketrans({"я": "а", "ё": "о", "ю": "у", "е": "э", "ы": "и", "й": None, "ь": None, "ъ": None})
+# Латинд ө/ү байхгүй тул хоёуланг нь u гэж бичдэг: «Munkh» ≈ «Мөнх», «Ulzii» ≈ «Өлзий».
+_SOUND = str.maketrans(
+    {"я": "а", "ё": "о", "ю": "у", "е": "э", "ы": "и", "ө": "у", "ү": "у", "й": None, "ь": None, "ъ": None}
+)
 
 
 @dataclass(frozen=True)

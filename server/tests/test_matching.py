@@ -65,7 +65,14 @@ def test_name_not_mentioned(text):
 
 
 @pytest.mark.parametrize(
-    "text, name", [("Сарая, Сарая", "Сараа"), ("Khulan ороорой", "Хулан"), ("Tsetseg", "Цэцэг")]
+    "text, name",
+    [
+        ("Сарая, Сарая", "Сараа"),
+        ("Khulan ороорой", "Хулан"),
+        ("Tsetseg", "Цэцэг"),
+        ("Munkh ороорой", "Мөнх"),
+        ("Ulzii", "Өлзий"),
+    ],
 )
 def test_name_heard_with_different_spelling(text, name):
     # ElevenLabs нэрийг латинаар эсвэл я/й-г сольж бичдэг.
