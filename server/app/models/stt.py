@@ -1,4 +1,5 @@
 import io
+import re
 import time
 import wave
 from collections import deque
@@ -20,6 +21,27 @@ from app.schemas import TalkAudioRequest, TalkTranscript
 MAX_RESPONSE_BYTES = 100_000
 MAX_UPLOAD_BYTES = 1_020_000
 BUDGET_WINDOW_SECONDS = 3600
+# ElevenLabs keyterms-ийн хязгаар: 50 тэмдэгтээс богино, 5-аас ихгүй үг, <>{}[]\ хориотой.
+MAX_KEYTERM_CHARS = 49
+MAX_KEYTERM_WORDS = 5
+# «Ярих» горим: үйлчилгээний цонхонд ихэвчлэн хэлдэг үг. Богино хэллэгийг Scribe тоо гэж бичдэг байсан
+# («Сайн байна уу» → «300»). 100-аас олон бол ElevenLabs хүсэлт бүрт 20 сек-ийн төлбөр авна.
+TALK_KEYTERMS: tuple[str, ...] = (
+    "Сайн байна уу",
+    "Баярлалаа",
+    "Баяртай",
+    "Уучлаарай",
+    "Тийм",
+    "Үгүй",
+    "Хүлээнэ үү",
+    "Түр хүлээгээрэй",
+    "Дараагийнх",
+    "Иргэний үнэмлэх",
+    "Гарын үсэг",
+    "Төлбөр",
+    "Цонх",
+)
+_KEYTERM_FORBIDDEN = re.compile(r"[<>{}\[\]\\]")
 
 
 def parse_audio(body: bytes, content_type: str) -> TalkAudioRequest:
@@ -39,11 +61,28 @@ def parse_audio(body: bytes, content_type: str) -> TalkAudioRequest:
         raise SpeechError("BAD_AUDIO", 400) from None
 
 
-def provider_body(audio: TalkAudioRequest, model: str, boundary: str) -> bytes:
-    fields = {"model_id": model, "language_code": "mon", "tag_audio_events": "false", "diarize": "false"}
+def keyterm(text: str) -> str | None:
+    """Хэрэглэгчийн бичсэн нэрийг ElevenLabs хүлээж авах хэлбэрт оруулна. Тохирохгүй бол None."""
+    cleaned = " ".join(_KEYTERM_FORBIDDEN.sub(" ", text).split())
+    if not cleaned or len(cleaned) > MAX_KEYTERM_CHARS or len(cleaned.split()) > MAX_KEYTERM_WORDS:
+        return None
+    return cleaned
+
+
+def provider_body(
+    audio: TalkAudioRequest, model: str, boundary: str, keyterms: tuple[str, ...] = ()
+) -> bytes:
+    fields = [
+        ("model_id", model),
+        ("language_code", "mon"),
+        ("tag_audio_events", "false"),
+        ("diarize", "false"),
+    ]
+    # Нэрийг урьдчилан хэлбэл Scribe «Болд»-ыг «Bold», «Батбаяр»-ыг «Бадбайр» гэж бичихээ больдог.
+    fields += [("keyterms", term) for term in filter(None, map(keyterm, keyterms))]
     chunks = [
         f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode()
-        for key, value in fields.items()
+        for key, value in fields
     ]
     extension = "webm" if audio.content_type == "audio/webm" else "m4a"
     chunks.append(
@@ -75,7 +114,7 @@ class TranscriptionService:
         settings = self.settings
         return bool(settings.elevenlabs_api_key) and urlparse(settings.elevenlabs_url).scheme == "https"
 
-    def transcribe(self, audio: TalkAudioRequest) -> TalkTranscript:
+    def transcribe(self, audio: TalkAudioRequest, keyterms: tuple[str, ...] = ()) -> TalkTranscript:
         settings = self.settings
         if not self.configured():
             raise SpeechError("STT_NOT_CONFIGURED", 503)
@@ -83,7 +122,7 @@ class TranscriptionService:
         boundary = uuid4().hex
         request = Request(
             f"{settings.elevenlabs_url.rstrip('/')}/v1/speech-to-text",
-            data=provider_body(audio, settings.elevenlabs_stt_model, boundary),
+            data=provider_body(audio, settings.elevenlabs_stt_model, boundary, keyterms),
             headers={
                 "xi-api-key": settings.elevenlabs_api_key,
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
@@ -123,6 +162,6 @@ class ElevenLabsTranscriber:
         self._service = service
         self._rate = rate
 
-    def transcribe(self, samples: np.ndarray) -> str:
+    def transcribe(self, samples: np.ndarray, keyterms: tuple[str, ...] = ()) -> str:
         audio = TalkAudioRequest(audio=wav_bytes(samples, self._rate), content_type="audio/wav")
-        return self._service.transcribe(audio).text
+        return self._service.transcribe(audio, keyterms).text

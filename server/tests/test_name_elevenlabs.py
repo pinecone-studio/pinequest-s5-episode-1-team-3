@@ -18,8 +18,9 @@ class RecordingTranscriber(FakeTranscriber):
         self.calls = 0
         self.error = error
 
-    def transcribe(self, samples: np.ndarray) -> str:
+    def transcribe(self, samples: np.ndarray, keyterms: tuple[str, ...] = ()) -> str:
         self.calls += 1
+        self.keyterms = keyterms
         if self.error:
             raise self.error
         return self.text
@@ -38,6 +39,7 @@ def test_name_mode_uses_elevenlabs(eleven):
     assert body["match"] == {"type": "name", "value": "Болд", "window": None}
     assert body["transcript"] == "Болдоо, нааш ир"
     assert eleven.calls == 1
+    assert eleven.keyterms == ("Болд",)
 
 
 @pytest.mark.parametrize("sound", [None, SoundResult(label="other", score=0.9)])
@@ -59,6 +61,7 @@ def test_elevenlabs_failure_falls_back_to_whisper(eleven, code, status):
 def test_talk_mode_uses_elevenlabs(eleven):
     assert post("talk").json()["transcript"] == "Болдоо, нааш ир"
     assert eleven.calls == 1
+    assert "Сайн байна уу" in eleven.keyterms
 
 
 def test_queue_mode_still_uses_whisper(eleven):
@@ -68,7 +71,7 @@ def test_queue_mode_still_uses_whisper(eleven):
 
 def test_elevenlabs_transcriber_sends_16khz_wav():
     class FakeService:
-        def transcribe(self, audio):
+        def transcribe(self, audio, keyterms=()):
             self.audio = audio
             return TalkTranscript(text="Болд")
 

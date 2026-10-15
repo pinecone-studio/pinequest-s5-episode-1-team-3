@@ -45,12 +45,12 @@ def test_other_number_does_not_match():
     assert not queue_matches(QueueCall(None, None, 3), Ticket("А", 24))
 
 
-@pytest.mark.parametrize("text", ["Болдоо, нааш ир", "Болдыг дуудаж байна", "болд аа"])
+@pytest.mark.parametrize("text", ["Болдоо, нааш ир", "Болдыг дуудаж байна", "болд аа", "Bold, bold."])
 def test_name_mentioned(text):
     assert name_mentioned(text, "Болд")
 
 
-@pytest.mark.parametrize("text", ["Бат-Эрдэнэ нааш ир", "батэрдэнээ ороорой", "Бат Эрдэнэ"])
+@pytest.mark.parametrize("text", ["Бат-Эрдэнэ нааш ир", "батэрдэнээ ороорой", "Бат Эрдэнэ", "Bat-Erdene"])
 def test_hyphenated_name_mentioned(text):
     assert name_mentioned(text, "Бат-Эрдэнэ")
 
@@ -59,6 +59,14 @@ def test_hyphenated_name_needs_every_part():
     assert not name_mentioned("Бат ирлээ", "Бат-Эрдэнэ")
 
 
-@pytest.mark.parametrize("text", ["энэ бол сайхан", "болт авчир", ""])
+@pytest.mark.parametrize("text", ["энэ бол сайхан", "болт авчир", "", "bolt"])
 def test_name_not_mentioned(text):
     assert not name_mentioned(text, "Болд")
+
+
+@pytest.mark.parametrize(
+    "text, name", [("Сарая, Сарая", "Сараа"), ("Khulan ороорой", "Хулан"), ("Tsetseg", "Цэцэг")]
+)
+def test_name_heard_with_different_spelling(text, name):
+    # ElevenLabs нэрийг латинаар эсвэл я/й-г сольж бичдэг.
+    assert name_mentioned(text, name)

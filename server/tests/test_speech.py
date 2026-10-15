@@ -23,3 +23,11 @@ def test_transcribe_cannot_loop_for_long(monkeypatch):
     assert options["max_new_tokens"] == MAX_NEW_TOKENS
     assert options["no_repeat_ngram_size"] > 0
     assert options["language"] == "mn"
+    assert options["hotwords"] is None
+
+
+def test_keyterms_become_whisper_hotwords(monkeypatch):
+    monkeypatch.setattr(faster_whisper, "WhisperModel", FakeWhisper)
+    transcriber = WhisperTranscriber("any", "int8", "mn")
+    transcriber.transcribe(np.zeros(16_000, dtype=np.float32), ("Батбаяр",))
+    assert transcriber._model.calls[0]["hotwords"] == "Батбаяр"
