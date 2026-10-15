@@ -4,6 +4,22 @@ import { AppState } from "react-native";
 import { useListener, type ListenerError } from "./useListener";
 import type { DetectionResult } from "@/lib/types";
 
+// Android дээр «Сонсох» дарахад микрофоны зөвшөөрлийн цонх (зөвшөөрөл өгсөн байсан ч) хоромхон нээгдэж
+// апп «background» болдог. Тэр үед зогсоохгүй: үүнээс удаан ард байвал л зогсооно.
+const BACKGROUND_STOP_MS = 1000;
+
+function useStopWhenBackgrounded(stop: () => void) {
+  useFocusEffect(useCallback(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const subscription = AppState.addEventListener("change", (state) => {
+      clearTimeout(timer);
+      if (state === "active") return;
+      timer = setTimeout(() => { if (AppState.currentState !== "active") stop(); }, BACKGROUND_STOP_MS);
+    });
+    return () => { clearTimeout(timer); stop(); subscription.remove(); };
+  }, [stop]));
+}
+
 export function useMatchListener(mode: "queue" | "name", value: string) {
   const router = useRouter();
   const accepting = useRef(false);
@@ -25,10 +41,7 @@ export function useMatchListener(mode: "queue" | "name", value: string) {
     setStarting(false);
     stopListener();
   }, [stopListener]);
-  useFocusEffect(useCallback(() => {
-    const subscription = AppState.addEventListener("change", (state) => { if (state !== "active") stop(); });
-    return () => { stop(); subscription.remove(); };
-  }, [stop]));
+  useStopWhenBackgrounded(stop);
   useEffect(() => {
     if (!accepting.current || (listener.error !== "server" && listener.error !== "noServer")) return;
     stop();

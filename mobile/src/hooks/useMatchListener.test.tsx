@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { useRouter } from "expo-router";
@@ -20,13 +21,26 @@ const listener = { listening: false, error: null, start, stop } as ReturnType<ty
 let current: ReturnType<typeof useMatchListener>;
 let tree: ReactTestRenderer;
 let mode: "queue" | "name";
+let appStateChange: (state: AppStateStatus) => void = () => undefined;
+function setAppState(state: AppStateStatus) {
+  Object.defineProperty(AppState, "currentState", { value: state, configurable: true });
+  act(() => appStateChange(state));
+}
 function Harness() { const value = useMatchListener(mode, mode === "queue" ? "А-024" : "Болд"); useEffect(() => { current = value; }); return null; }
 beforeEach(() => {
   jest.clearAllMocks(); mode = "queue"; listener.error = null;
   jest.mocked(useRouter).mockReturnValue({ push } as unknown as ReturnType<typeof useRouter>);
   jest.mocked(useListener).mockReturnValue(listener);
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_type, handler) => {
+    appStateChange = handler as (state: AppStateStatus) => void;
+    return { remove: jest.fn() } as unknown as ReturnType<typeof AppState.addEventListener>;
+  });
 });
-afterEach(async () => { await act(async () => tree?.unmount()); });
+afterEach(async () => {
+  await act(async () => tree?.unmount());
+  Object.defineProperty(AppState, "currentState", { value: "active", configurable: true });
+  jest.useRealTimers();
+});
 async function mount() {
   await act(async () => { tree = create(<Harness />); });
   await act(async () => current.start());
@@ -66,6 +80,18 @@ test.each(["permission", "recorder"] as const)("%s error stays inline", async (e
   await mount(); listener.error = error;
   await act(async () => tree.update(<Harness />));
   expect(current.error).toBe(error); expect(push).not.toHaveBeenCalled();
+});
+test("a brief background from the permission prompt keeps listening", async () => {
+  jest.useFakeTimers(); await mount();
+  setAppState("background"); setAppState("active");
+  act(() => { jest.advanceTimersByTime(2000); });
+  expect(stop).not.toHaveBeenCalled();
+});
+test("staying in the background stops listening", async () => {
+  jest.useFakeTimers(); await mount();
+  setAppState("background");
+  act(() => { jest.advanceTimersByTime(1000); });
+  expect(stop).toHaveBeenCalled();
 });
 test("rejected startup reports a recording error without an unhandled rejection", async () => {
   start.mockRejectedValueOnce(new Error("audio session")); await mount();
