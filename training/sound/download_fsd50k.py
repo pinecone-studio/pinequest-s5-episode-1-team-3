@@ -29,9 +29,7 @@ def fetch(split: str, fname: str) -> bool:
     partial = target.with_suffix(".part")
     try:
         with (
-            urlopen(
-                f"{MIRROR}/{split}/{fname}.wav", timeout=TIMEOUT_SECONDS
-            ) as response,
+            urlopen(f"{MIRROR}/{split}/{fname}.wav", timeout=TIMEOUT_SECONDS) as response,
             partial.open("wb") as out,
         ):
             shutil.copyfileobj(response, out)

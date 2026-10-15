@@ -47,7 +47,8 @@ NOT_HOME_ALARM = frozenset(
     }
 )
 # v3: FSD50K dev-ээс зөвхөн сургалтад. Test нь v2-тэй яг ижил үлдэнэ (үр дүнг шууд харьцуулна).
-# Мэдэгдлийн бичлэгийг бүгдийг, андуурагдах дууг (утас, сүмийн хонх, хаалга хаах …) ангилал бүрээс хязгаартай авна:
+# Мэдэгдлийн бичлэгийг бүгдийг, андуурагдах дууг (утас, сүмийн хонх, хаалга хаах …)
+# ангилал бүрээс хязгаартай авна:
 # зөвхөн хонх нэмбэл загвар бүх «дин-дон» дээр мэдэгдэнэ.
 DEV_CONFUSERS = (
     "Telephone", "Ringtone", "Siren", "Bicycle_bell", "Chime", "Bell", "Church_bell", "Tick-tock",
@@ -113,9 +114,7 @@ def fsd50k_clips(skip: set[str]) -> list[Clip]:
         return []
     with (FSD50K / "FSD50K.ground_truth" / "eval.csv").open(newline="") as meta:
         rows = [row for row in csv.DictReader(meta) if f"fs-{row['fname']}" not in skip]
-    info = json.loads(
-        (FSD50K / "FSD50K.metadata" / "eval_clips_info_FSD50K.json").read_text()
-    )
+    info = json.loads((FSD50K / "FSD50K.metadata" / "eval_clips_info_FSD50K.json").read_text())
     clips = []
     for row in rows:
         # Нэг хүн ижил хонхоо олон удаа бичиж оруулдаг: хүнээр нь бүлэглэнэ.
@@ -135,18 +134,12 @@ def fsd50k_clips(skip: set[str]) -> list[Clip]:
 def dev_selection() -> list[dict[str, str]]:
     """FSD50K dev-ээс сургалтад нэмэх бичлэг. download_fsd50k.py ч яг үүнийг татна."""
     with (FSD50K / "FSD50K.ground_truth" / "dev.csv").open(newline="") as meta:
-        rows = sorted(
-            csv.DictReader(meta), key=lambda row: zlib.crc32(row["fname"].encode())
-        )
+        rows = sorted(csv.DictReader(meta), key=lambda row: zlib.crc32(row["fname"].encode()))
     picked, taken = [], Counter()
     for row in rows:
         labels = set(row["labels"].split(","))
         label = fsd50k_label(labels)
-        quota = (
-            [(c, DEV_PER_CONFUSER) for c in DEV_CONFUSERS if c in labels]
-            if label == "other"
-            else []
-        )
+        quota = [(c, DEV_PER_CONFUSER) for c in DEV_CONFUSERS if c in labels] if label == "other" else []
         if label == "speech":
             quota = [("speech", DEV_SPEECH)]
         # Dev-ийн «Alarm» хэт өргөн (аянга, хашгирах …): нэмэхэд худал сэрүүлэг 7 → 22 бичлэг.
@@ -157,16 +150,15 @@ def dev_selection() -> list[dict[str, str]]:
 
 
 def fsd50k_dev_clips(skip: set[str], test_groups: set[str]) -> list[Clip]:
-    """Dev нь зөвхөн train. Test-д орсон хүний (uploader) бичлэгийг алгасна: нэг хүний дуу хоёуланд орохгүй."""
+    """Dev нь зөвхөн train. Test-д орсон хүний (uploader) бичлэгийг алгасна.
+
+    Нэг хүний дуу train, test хоёуланд орохгүй.
+    """
     audio = FSD50K / "FSD50K.dev_audio"
     if not audio.exists():
-        logger.warning(
-            "FSD50K dev алга (%s): download_fsd50k.py", audio.relative_to(DATA)
-        )
+        logger.warning("FSD50K dev алга (%s): download_fsd50k.py", audio.relative_to(DATA))
         return []
-    info = json.loads(
-        (FSD50K / "FSD50K.metadata" / "dev_clips_info_FSD50K.json").read_text()
-    )
+    info = json.loads((FSD50K / "FSD50K.metadata" / "dev_clips_info_FSD50K.json").read_text())
     clips = []
     for row in dev_selection():
         group = f"up-{info[row['fname']]['uploader']}"
@@ -227,9 +219,7 @@ def write_manifest(clips: list[Clip]) -> None:
     with MANIFEST.open("w", newline="") as out:
         writer = csv.writer(out)
         writer.writerow(["name", "label", "group", "split"])
-        writer.writerows(
-            [clip.name, clip.label, clip.group, clip.split] for clip in clips
-        )
+        writer.writerows([clip.name, clip.label, clip.group, clip.split] for clip in clips)
 
 
 def main() -> None:
@@ -244,9 +234,7 @@ def main() -> None:
     counts = Counter((clip.label, clip.split) for clip in clips)
     logger.info("%-9s %6s %6s", "ангилал", "train", "test")
     for label in sorted({clip.label for clip in clips}):
-        logger.info(
-            "%-9s %6d %6d", label, counts[label, "train"], counts[label, "test"]
-        )
+        logger.info("%-9s %6d %6d", label, counts[label, "train"], counts[label, "test"])
     logger.info("Нийт %d бичлэг → %s", len(clips), MANIFEST.relative_to(ROOT))
 
 
