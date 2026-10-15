@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { useIncomingTalk } from "@/hooks/useIncomingTalk";
+import type { useIncomingTalk } from "@/hooks/useIncomingTalk";
 import { config } from "@/config";
 import { SIGN_VOCABULARY } from "@/lib/signDictionary";
 import { planSigns, type SignPlan } from "@/lib/signPlan";
@@ -15,8 +15,10 @@ const t = strings.talk.incoming;
 // Видеоны хаяг тохируулаагүй бол дохио санал болгохгүй: нээгдэхгүй видео харуулахаас бичвэр дээр.
 const VOCABULARY: ReadonlySet<string> = config.signVideoBaseUrl ? SIGN_VOCABULARY : new Set();
 
-export function IncomingTalkPanel({ onListen, onBusy }: { onListen: () => void; onBusy: (busy: boolean) => void }) {
-  const incoming = useIncomingTalk();
+// incoming-ийг дэлгэц эзэмшинэ: хэрэглэгч өгүүлбэр хэлсний дараа «Хариуг нь сонсох»-оос шууд сонсож эхэлнэ.
+type Props = { incoming: ReturnType<typeof useIncomingTalk>; onListen: () => void; onBusy: (busy: boolean) => void };
+
+export function IncomingTalkPanel({ incoming, onListen, onBusy }: Props) {
   const [preview, setPreview] = useState<SignPlan | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [replayBusy, setReplayBusy] = useState(false);
