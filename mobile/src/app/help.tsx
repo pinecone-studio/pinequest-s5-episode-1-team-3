@@ -19,7 +19,6 @@ export default function HelpScreen() {
   const [failed, setFailed] = useState(false);
 
   const connect = () => {
-    if (!config.interpreterUrl) { setFailed(true); return; }
     setFailed(false);
     // The phone may have no app for this link; say so instead of doing nothing.
     Linking.openURL(config.interpreterUrl).catch(() => setFailed(true));
@@ -32,9 +31,14 @@ export default function HelpScreen() {
         backLabel={t.back}
         onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))}
       />
-      <CardRow label={t.interpreter} icon="videocam-outline" />
-      <ActionButton label={t.connect} icon="hand-left-outline" onPress={connect} />
-      {failed && <ErrorBanner message={t.unavailable} />}
+      {/* EXPO_PUBLIC_INTERPRETER_URL тохируулаагүй бол нуух: дарахад зөвхөн алдаа гарна */}
+      {config.interpreterUrl ? (
+        <>
+          <CardRow label={t.interpreter} icon="videocam-outline" />
+          <ActionButton label={t.connect} icon="hand-left-outline" onPress={connect} />
+          {failed && <ErrorBanner message={t.unavailable} />}
+        </>
+      ) : null}
       <CardRow label={t.staffCard} icon="create-outline" onPress={() => setCardOpen(true)} />
       <StaffCard visible={cardOpen} onClose={() => setCardOpen(false)} />
     </ScreenContainer>

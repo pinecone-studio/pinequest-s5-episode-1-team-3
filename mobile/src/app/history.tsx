@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Chip } from "@/components/Chip";
@@ -8,38 +8,23 @@ import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { colors, fontSize, spacing } from "@/components/theme";
 import type { IconName } from "@/components/types";
+import { ALERTS, formatTime, type AlertKind } from "@/lib/alerts";
+import { getHistory, historyTitle, subscribeHistory } from "@/lib/history";
 import { strings } from "@/strings";
 
 const t = strings.history;
 
 type Filter = keyof typeof t.filters;
-type Mode = Exclude<Filter, "all">;
-
-type HistoryEntry = {
-  id: string;
-  mode: Mode;
-  icon: IconName;
-  color: string;
-  title: string;
-  time: string;
-};
 
 const FILTERS: Filter[] = ["all", "home", "queue", "name"];
-
-// Placeholder rows; replace with a services/storage query once it exists.
-const SAMPLE_ENTRIES: HistoryEntry[] = [
-  { id: "1", mode: "queue", icon: "ticket", color: colors.mode.queue, ...t.sample.queue },
-  { id: "2", mode: "home", icon: "hand-right", color: colors.mode.home, ...t.sample.knock },
-  { id: "3", mode: "home", icon: "notifications", color: colors.info, ...t.sample.doorbell },
-  { id: "4", mode: "name", icon: "person", color: colors.mode.name, ...t.sample.name },
-];
+const MODE: Record<AlertKind, Exclude<Filter, "all">> = { knock: "home", doorbell: "home", alarm: "home", queue: "queue", name: "name" };
+const ICON: Record<AlertKind, IconName> = { knock: "hand-right", doorbell: "notifications", alarm: "alarm", queue: "ticket", name: "person" };
 
 export default function HistoryScreen() {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
-  const entries = SAMPLE_ENTRIES.filter(
-    (entry) => filter === "all" || entry.mode === filter,
-  );
+  const history = useSyncExternalStore(subscribeHistory, getHistory);
+  const entries = history.filter((entry) => filter === "all" || MODE[entry.kind] === filter);
 
   return (
     <ScreenContainer>
@@ -58,12 +43,13 @@ export default function HistoryScreen() {
       {entries.map((entry) => (
         <ListRow
           key={entry.id}
-          title={entry.title}
-          subtitle={entry.time}
-          icon={entry.icon}
-          color={entry.color}
+          title={historyTitle(entry)}
+          subtitle={formatTime(entry.at)}
+          icon={ICON[entry.kind]}
+          color={ALERTS[entry.kind].color}
         />
       ))}
+      <Text style={styles.note}>{t.sessionOnly}</Text>
     </ScreenContainer>
   );
 }
@@ -76,4 +62,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: spacing.xl,
   },
+  note: { fontSize: fontSize.body, color: colors.textMuted, textAlign: "center" },
 });
