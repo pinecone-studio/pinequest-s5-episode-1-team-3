@@ -152,13 +152,9 @@ export const strings = {
       queue: "Дараалал",
       name: "Нэр",
     },
-    // Placeholder rows until services/storage exists.
-    sample: {
-      queue: { title: "А-024 дугаар · 3-р цонх", time: "Өнөөдөр 14:35" },
-      knock: { title: "Хаалга тогшив", time: "Өнөөдөр 12:10" },
-      doorbell: { title: "Хаалганы хонх", time: "Өнөөдөр 09:02" },
-      name: { title: "Нэр дуудсан", time: "Өчигдөр 18:20" },
-    },
+    ticket: "дугаар",
+    window: "-р цонх",
+    sessionOnly: "Аппыг хаахад түүх арилна.",
   },
   settings: {
     title: "Тохиргоо",
