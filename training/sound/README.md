@@ -34,6 +34,22 @@ sh ../../server/scripts/download_models.sh   # сервертэй ижил yamne
 .venv/bin/python evaluate.py    # baseline ба толгойг серверийн кодоор test дээр харьцуулна
 ```
 
+## HF-ээс давтан сургах (түүхий бичлэггүй)
+
+Түүхий бичлэг (~7 GB) хэрэггүй. YAMNet-ийн бэлэн шинж багийн private dataset-д бий
+(`sonsyo/sonsyo-sound-data`, 12 MB). `sonsyo` байгууллагын гишүүн, `hf auth login` хийсэн байх ёстой.
+
+```bash
+sh ../../server/scripts/download_models.sh   # сервертэй ижил yamnet.tflite
+.venv/bin/hf download sonsyo/sonsyo-sound-data features.npz --repo-type dataset --local-dir data
+.venv/bin/python train.py      # → data/sound_head.json
+.venv/bin/python evaluate.py   # data/16k байхгүй тул худал мэдэгдэл/цагийг хэсгийн тоо × 3 сек-ээр тооцно
+```
+
+Windows дээр `.venv/bin/` → `.venv\Scripts\`. Seed тогтмол тул нэг компьютер дээр ижил загвар гарна.
+Mac, Windows хоёр дээр тоо бага зэрэг зөрнө: [RESULTS.md](../RESULTS.md) → «v2 дахин».
+8 GB RAM-тай Windows лаптоп дээр `train.py` ~4 цаг (6 сургалт × 23–58 мин) болсон. Хүнд програмуудаа хаа.
+
 ## Серверт асаах
 
 `train.py` нь `data/sound_head.json`-д жин, босгыг хамт хадгална. Сервер үүнийг numpy-гаар ажиллуулна (sklearn хэрэггүй):
@@ -47,10 +63,11 @@ SOUND_HEAD_MODEL=../training/sound/data/sound_head.json
 
 ## HF Hub руу оруулах (Git-д биш)
 
+Багийн нэрээр (`sonsyo`) нийтэлнэ. Шинэ хувилбар бүр HF дээр тусдаа commit болж хадгалагдана:
+
 ```bash
 .venv/bin/hf auth login     # нэг удаа, өөрийн «Write» токеноор
-.venv/bin/hf upload <hf-нэр>/signo-sound-head data/sound_head.json sound_head.json --private
-.venv/bin/hf upload <hf-нэр>/signo-sound-head data/sound_head.joblib sound_head.joblib --private
+.venv/bin/hf upload sonsyo/sonsyo-sound-head data/sound_head.json sound_head.json
 ```
 
-Repo байхгүй бол `--private`-аар үүснэ. Тоог [training/RESULTS.md](../RESULTS.md)-д нэмнэ.
+Тоог [training/RESULTS.md](../RESULTS.md)-д нэмнэ.

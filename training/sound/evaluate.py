@@ -4,6 +4,7 @@
 Хоёулаа серверийн кодоор (pick_label, SoundHead) тооцогдоно: энд гарсан тоо = сервер дээрх тоо.
 
 Ажиллуулах: .venv/bin/python evaluate.py   (train.py-ийн дараа)
+Зөвхөн HF-ийн features.npz-тэй (түүхий бичлэггүй) үед ч ажиллана: README → «HF-ээс давтан сургах».
 """
 
 import logging
@@ -12,6 +13,7 @@ import wave
 from pathlib import Path
 
 import numpy as np
+from features import SEGMENT_SECONDS
 from train import ALERTS, FEATURES, HEAD_JSON, TARGET_PRECISION, YAMNET, precision
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -37,7 +39,14 @@ def baseline_predict(x: np.ndarray) -> np.ndarray:
     return np.array(labels)
 
 
-def background_hours(names: np.ndarray) -> float:
+def background_hours(names: np.ndarray, windows: int) -> float:
+    """«Бусад» бичлэгийн нийт урт (цаг). Худал мэдэгдлийг цагт хувиргахад хэрэгтэй.
+
+    Түүхий бичлэг (data/16k) нэг хүний компьютерт л байдаг. Байхгүй бол HF-ийн features.npz-ийн
+    хэсгийн тоо × 3 сек-ээр тооцно. Сүүлийн хэсэг 1–4 сек байж болох тул ойролцоо.
+    """
+    if not (DATA / "16k").exists():
+        return windows * SEGMENT_SECONDS / SECONDS_PER_HOUR
     seconds = 0.0
     for name in names:
         with wave.open(str(DATA / "16k" / name), "rb") as audio:
@@ -77,7 +86,8 @@ def main() -> None:
     rows = np.isin(clip, test_clips)
     window_clip = np.searchsorted(test_clips, clip[rows])  # test бичлэгийг 0..n гэж дахин дугаарлана
     truth = labels[test_clips]
-    hours = background_hours(names[test_clips][~np.isin(truth, ALERTS)])
+    quiet_windows = int((~np.isin(truth[window_clip], ALERTS)).sum())
+    hours = background_hours(names[test_clips][~np.isin(truth, ALERTS)], quiet_windows)
     head = SoundHead(str(HEAD_JSON))
     probs = head.probabilities(x[rows].astype(np.float64))
 
