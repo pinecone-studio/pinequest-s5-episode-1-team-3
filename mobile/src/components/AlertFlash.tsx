@@ -12,7 +12,7 @@ export function AlertFlash() {
   useEffect(() => {
     let active = true;
     const loop = Animated.loop(Animated.sequence([
-      Animated.timing(opacity, { toValue: 0.6, duration: 150, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0.9, duration: 150, useNativeDriver: true }),
       Animated.timing(opacity, { toValue: 0, duration: 350, useNativeDriver: true }),
       Animated.delay(500),
     ]));

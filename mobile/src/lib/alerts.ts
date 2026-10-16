@@ -17,8 +17,6 @@ export interface AlertConfig {
   accent: string;
   /** Android pattern: [хүлээх, чичрэх, хүлээх, чичрэх, …] мс */
   vibration: readonly number[];
-  /** Дэлгэц анивчих эсэх: утас руу харахгүй байсан ч нүдний булангаар анзаарна */
-  flash: boolean;
 }
 
 // Шинэ төрлийн мэдэгдэл = энд нэг мөр нэмэх.
@@ -31,7 +29,6 @@ export const ALERTS: Record<AlertKind, AlertConfig> = {
     color: "#E8A33D",
     accent: "#E8A33D",
     vibration: [0, 200, 100, 200, 100, 200, 800],
-    flash: true,
   },
   doorbell: {
     icon: "bell-outline",
@@ -39,7 +36,6 @@ export const ALERTS: Record<AlertKind, AlertConfig> = {
     color: "#4B82EE",
     accent: "#4B82EE",
     vibration: [0, 600, 300, 600, 800],
-    flash: true,
   },
   alarm: {
     icon: "alarm-light-outline",
@@ -47,7 +43,6 @@ export const ALERTS: Record<AlertKind, AlertConfig> = {
     color: "#C62828",
     accent: "#C62828",
     vibration: [0, 800, 200, 800, 200, 800, 800],
-    flash: true,
   },
   queue: {
     icon: "ticket-confirmation-outline",
@@ -55,8 +50,6 @@ export const ALERTS: Record<AlertKind, AlertConfig> = {
     color: "#4FA556",
     accent: "#3A7D44",
     vibration: [0, 400, 200, 400, 200, 800, 800],
-    // Дугаар, цонхыг уншихад саад болохгүй: дарааллыг анивчуулахгүй.
-    flash: false,
   },
   name: {
     icon: "account-outline",
@@ -64,7 +57,6 @@ export const ALERTS: Record<AlertKind, AlertConfig> = {
     color: "#8A3CDF",
     accent: "#8A3CDF",
     vibration: [0, 300, 150, 300, 150, 300, 800],
-    flash: true,
   },
 };
 
