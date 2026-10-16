@@ -13,6 +13,10 @@ describe("alert routes", () => {
     expect(isAlertKind(kind)).toBe(false);
   });
 
+  test("every alert flashes except queue, whose ticket must stay readable", () => {
+    expect(ALERT_KINDS.filter((kind) => !ALERTS[kind].flash)).toEqual(["queue"]);
+  });
+
   test("formats the event time with leading zeroes", () => {
     expect(formatTime(new Date(2026, 9, 8, 9, 5))).toBe("09:05");
   });
