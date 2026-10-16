@@ -7,6 +7,7 @@ import { ListenButton } from "@/components/ListenButton";
 import { PillButton } from "@/components/PillButton";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { StandbyOverlay } from "@/components/StandbyOverlay";
 import { colors, fontSize, radius, sizes, spacing } from "@/components/theme";
 import { useMatchListener } from "@/hooks/useMatchListener";
 import { useLayout } from "@/hooks/useLayout";
@@ -22,6 +23,7 @@ export default function NameScreen() {
   const { scale, isWide } = useLayout();
   const [input, setInput] = useState("");
   const listener = useMatchListener("name", input.trim());
+  const [standby, setStandby] = useState(false);
   const name = listener.listening ? input : null;
   const [error, setError] = useState(false);
   const toggleListening = () => {
@@ -48,6 +50,8 @@ export default function NameScreen() {
       </View>
       {listener.error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.bodyText}>{t.errors[listener.error]}</Text>}
       {name && <PillButton label={t.testAlert} icon="notifications-outline" onPress={() => { listener.stop(); router.push({ pathname: "/alert", params: { kind: "name" } }); }} />}
+      {name && <PillButton label={strings.standby.enter} icon="moon-outline" onPress={() => setStandby(true)} />}
+      {name && standby && <StandbyOverlay onExit={() => setStandby(false)} />}
       <NameNotice />
     </ScreenContainer>
   );

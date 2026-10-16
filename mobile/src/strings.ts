@@ -1,5 +1,12 @@
 // Every on-screen Mongolian string lives here, grouped by screen.
 export const strings = {
+  // Гэр, дугаар, нэрийн сонсох дэлгэц бүрт
+  standby: {
+    enter: "Хүлээх горим",
+    listening: "Сонсож байна",
+    hint: "Дэлгэц унтрахгүй. Дуу гарахад анивчина.",
+    exit: "Дарж гарна",
+  },
   index: {
     title: "Сонсъё",
     modes: {

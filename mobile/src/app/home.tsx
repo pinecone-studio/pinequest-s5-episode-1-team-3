@@ -6,6 +6,7 @@ import { ListenButton } from "@/components/ListenButton";
 import { PillButton } from "@/components/PillButton";
 import { ScreenContainer } from "@/components/ScreenContainer";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { StandbyOverlay } from "@/components/StandbyOverlay";
 import { ToggleRow } from "@/components/ToggleRow";
 import { fontSize, colors, spacing } from "@/components/theme";
 import { useLayout } from "@/hooks/useLayout";
@@ -31,6 +32,7 @@ export default function HomeModeScreen() {
   const [enabled, setEnabled] = useState(INITIAL_ENABLED);
   // Хэрэглэгч сонсохыг хүссэн эсэх. Мэдэгдлийн дэлгэц нээгдэхэд түр зогсоод, буцахад үргэлжилнэ.
   const wanted = useRef(false);
+  const [standby, setStandby] = useState(false);
 
   const onResult = (result: DetectionResult) => {
     const kind = alertKindFor(result, enabled);
@@ -92,6 +94,8 @@ export default function HomeModeScreen() {
         </View>
       </View>
       {listening && <HomeAlertPreview enabled={enabled} />}
+      {listening && <PillButton label={strings.standby.enter} icon="moon-outline" onPress={() => setStandby(true)} />}
+      {listening && standby && <StandbyOverlay onExit={() => setStandby(false)} />}
     </ScreenContainer>
   );
 }

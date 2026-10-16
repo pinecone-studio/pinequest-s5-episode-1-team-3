@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Vibration } from "react-native";
 
 import { AlertOverlay } from "../components/AlertOverlay";
+import { AlertTorch } from "../components/AlertTorch";
 import { ALERTS, formatTime, isAlertKind, parseWindowNumber } from "../lib/alerts";
 import { addHistory } from "../lib/history";
 
@@ -33,12 +34,15 @@ export default function AlertScreen() {
   const dismiss = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
   return (
-    <AlertOverlay
-      kind={kind}
-      time={time}
-      ticket={params.ticket ?? null}
-      windowNumber={parseWindowNumber(params.window)}
-      onDismiss={dismiss}
-    />
+    <>
+      <AlertTorch />
+      <AlertOverlay
+        kind={kind}
+        time={time}
+        ticket={params.ticket ?? null}
+        windowNumber={parseWindowNumber(params.window)}
+        onDismiss={dismiss}
+      />
+    </>
   );
 }

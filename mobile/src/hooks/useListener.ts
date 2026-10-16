@@ -4,6 +4,7 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
 } from "expo-audio";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { config } from "@/config";
@@ -21,6 +22,7 @@ type Options = {
 
 // API гэрээ: AAC, mono, 16kHz. Илүү өндөр чанар зөвхөн upload-ыг удаашруулна.
 const DETECT_RECORDING = { ...RecordingPresets.HIGH_QUALITY, sampleRate: 16_000, numberOfChannels: 1, bitRate: 32_000 };
+const KEEP_AWAKE_TAG = "listener";
 
 // Апп даяар ганц сонсогч (AGENTS.md). config.recordChunkMs тутам бичлэгээ
 // сервер рүү илгээж, хариуг хүлээлгүй дараагийн бичлэгээ эхэлнэ.
@@ -125,6 +127,13 @@ export function useListener({ mode, ticket, name, onResult }: Options) {
     cancelWait.current();
     setListening(false);
   }, []);
+
+  // Сонсож байх үед дэлгэц унтрахгүй: утас түгжигдвэл апп ард шилжиж сонсох зогсоно.
+  useEffect(() => {
+    if (!listening) return;
+    void activateKeepAwakeAsync(KEEP_AWAKE_TAG);
+    return () => { void deactivateKeepAwake(KEEP_AWAKE_TAG); };
+  }, [listening]);
 
   return { listening, error, start, stop };
 }
