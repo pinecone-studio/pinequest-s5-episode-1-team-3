@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, useWindowDimensions, View } from "react-na
 
 import { getAlertScale, scaleSize } from "../lib/alertLayout";
 import { ALERTS, type AlertKind } from "../lib/alerts";
+import { AlertFlash } from "./AlertFlash";
 import {
   type AlertStyles,
   createAlertStyles,
@@ -28,7 +29,7 @@ export function AlertOverlay({ kind, time, ticket, windowNumber, onDismiss }: Pr
   const scale = getAlertScale(width, height);
   const styles = useMemo(() => createAlertStyles(scale), [scale]);
 
-  const { icon, title, color, accent } = ALERTS[kind];
+  const { icon, title, color, accent, flash } = ALERTS[kind];
   const isQueue = kind === "queue";
   const showTime = kind === "knock" || kind === "doorbell";
   const iconSize = scaleSize(isQueue ? ICON_SIZE_TICKET : ICON_SIZE, scale);
@@ -39,6 +40,7 @@ export function AlertOverlay({ kind, time, ticket, windowNumber, onDismiss }: Pr
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {flash ? <AlertFlash /> : null}
       <View style={styles.inner}>
         <MaterialCommunityIcons name={icon} size={iconSize} color={WHITE} />
         <Text style={styles.title} accessibilityRole="header">
